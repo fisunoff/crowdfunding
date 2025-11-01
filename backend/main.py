@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
+from endpoints import auth, profiles
+
 app = FastAPI(
     title='Краудфандинговая платформа',
 )
@@ -12,3 +14,5 @@ app.add_middleware(
     allow_headers=['*'],  # Разрешенные заголовки
 )
 
+app.include_router(auth.auth_router, prefix='/auth')
+app.include_router(profiles.profile_router, prefix='/profile')
