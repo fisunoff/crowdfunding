@@ -38,8 +38,6 @@ def verify_password(plain_password, hashed_password) -> bool:
 
 class TokenFactory:
     def _get_token_payload(self, user: Profile) -> TokenPayload:
-        if not user.is_active:
-            raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail='Inactive user')
         return TokenPayload(
             sub=str(user.id),
             is_author=user.is_author,

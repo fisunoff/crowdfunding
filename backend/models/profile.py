@@ -22,4 +22,4 @@ class Profile(Base):
     login = Column(String(255), nullable=False, unique=True)
     hashed_password = Column(String, nullable=False)
 
-    projects = relationship('Projects', back_populates='author')
+    projects = relationship('Project', back_populates='author')

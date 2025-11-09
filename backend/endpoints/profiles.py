@@ -12,7 +12,7 @@ profile_router = APIRouter()
 
 
 @profile_router.get('/', response_model=list[ProfileReadData])
-async def get_workers(
+async def get_profiles(
         db: AsyncSession = Depends(get_db),
         _token_payload: dict = Depends(verify_admin_role),
 ) -> Sequence[Profile]:
