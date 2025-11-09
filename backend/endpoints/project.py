@@ -46,18 +46,55 @@ async def create_project(
 async def delete_project(
         pk: int,
         db: AsyncSession = Depends(get_db),
-    token_payload: dict = Depends(verify_author_role),
+        token_payload: dict = Depends(verify_author_role),
 ):
     """
     Удалить проект. Доступно только автору на стадии черновика либо согласования.
     """
     project = await db.get(Project, pk)
     if not project:
-        raise HTTPException(status_code=404, detail='Project not found')
+        raise HTTPException(status_code=404, detail='Проект не найден.')
     if project.author_id != int(token_payload['sub']):
-        raise HTTPException(status_code=403, detail='Вы не можете удалить этот проект')
+        raise HTTPException(status_code=403, detail='Вы не можете удалить этот проект.')
     if project.status not in {'draft', 'onModeration'}:
-        raise HTTPException(status_code=403, detail='Проект на данной стадии удалить уже нельзя')
+        raise HTTPException(status_code=403, detail='Проект на данной стадии удалить уже нельзя.')
     await db.delete(project)
     await db.commit()
     return None
+
+
+@project_router.post(
+    '/{pk}/submit',
+    response_model=CreatedProjectData,
+)
+async def submit_project(
+        pk: int,
+        db: AsyncSession = Depends(get_db),
+        token_payload: dict = Depends(verify_author_role),
+):
+    """
+    Отправить проект на модерацию. Доступно только автору на стадии черновика.
+    """
+    project = await db.get(Project, pk)
+    if not project:
+        raise HTTPException(status_code=404, detail='Проект не найден.')
+    if project.author_id != int(token_payload['sub']):
+        raise HTTPException(status_code=403, detail='Вы не можете удалить этот проект.')
+    if project.status != 'draft':
+        raise HTTPException(status_code=403, detail='Проект нельзя перевести на модерацию.')
+    project.status = 'onModeration'
+    db.add(project)
+    await db.commit()
+    await db.refresh(project)
+    return project
+
+@project_router.get('/{pk}', response_model=CreatedProjectData)
+async def get_project(
+        pk: int,
+        db: AsyncSession = Depends(get_db),
+        _token_payload: dict = Depends(verify_token),
+):
+    project = await db.get(Project, pk)
+    if not project:
+        raise HTTPException(status_code=404, detail='Проект не найден.')
+    return project
