@@ -23,3 +23,4 @@ class Profile(Base):
     hashed_password = Column(String, nullable=False)
 
     projects = relationship('Project', back_populates='author')
+    contributions = relationship('Contribution', back_populates='profile')

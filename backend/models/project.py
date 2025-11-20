@@ -5,6 +5,7 @@ from models import Base
 
 __all__ = [
     'Project',
+    'Reward',
 ]
 
 class Project(Base):

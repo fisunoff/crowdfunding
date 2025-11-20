@@ -9,11 +9,16 @@ __all__ = [
 
 
 class Contribution(Base):
+    """
+    Вклад пользователя в проект. Возможен на конкретное вознаграждение.
+    """
     __tablename__ = 'contributions'
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = mapped_column(ForeignKey('projects.id', ondelete='RESTRICT'), nullable=False)
     project = relationship('Project', back_populates='contributions')
     reward_id = mapped_column(ForeignKey('rewards.id', ondelete='RESTRICT'), nullable=False)
     reward = relationship('Reward', back_populates='contributions')
+    profile_id = mapped_column(ForeignKey('profile.id', ondelete='RESTRICT'), nullable=False)
+    profile = relationship('Profile', back_populates='contributions')
     status = Column(String(50), nullable=False)
     created_at = Column(DateTime, nullable=False)
