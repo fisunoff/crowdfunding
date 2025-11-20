@@ -8,7 +8,9 @@ from models import Profile, get_db
 from schemas.profile import ProfileReadData
 from utils.jwt_token import verify_admin_role, verify_token
 
-profile_router = APIRouter()
+profile_router = APIRouter(
+    tags=['Profile'],
+)
 
 
 @profile_router.get('/', response_model=list[ProfileReadData])

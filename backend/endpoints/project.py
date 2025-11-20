@@ -10,7 +10,9 @@ from schemas.project import CreatedProjectData, BaseProjectData
 from schemas.reward import RewardData, BaseRewardData
 from utils.jwt_token import verify_token, verify_author_role
 
-project_router = APIRouter()
+project_router = APIRouter(
+    tags=['Проекты'],
+)
 
 
 async def verify_project_by_author(project, author_id):
