@@ -14,6 +14,7 @@ class Profile(Base):
     surname = Column(String(255), nullable=False)
     patronymic = Column(String(255), nullable=False)
     bank_number = Column(String(255), nullable=False)
+    phone_number = Column(String(255), nullable=True)
 
     is_admin = Column(Boolean, nullable=False, default=False)
     is_author = Column(Boolean, nullable=False, default=False)
