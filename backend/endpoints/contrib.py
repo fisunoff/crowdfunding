@@ -1,7 +1,8 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from pydantic import BaseModel
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -75,3 +76,24 @@ async def get_my_contributions(
 
     results = (await db.execute(stmt)).scalars().all()
     return results
+
+
+class ContribStats(BaseModel):
+    total_count: int
+    total_amount: float
+
+@contrib_router.get('/stats')
+async def get_contribution_stats(
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Общая статистика по вкладам
+    """
+    stmt = select(
+        func.count(Contribution.id).label("total_count"),
+        func.sum(Reward.price).label("total_amount")
+    ).join(Contribution.reward)
+
+    result = await db.execute(stmt)
+    stats = result.one()
+    return ContribStats(total_count=stats[0], total_amount=stats[1])
