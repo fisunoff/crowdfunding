@@ -25,6 +25,7 @@ class Project(Base):
     status = Column(String, nullable=False)
 
     rewards = relationship('Reward', back_populates='project')
+    contributions = relationship('Contribution', back_populates='project')
 
 class Reward(Base):
     """
@@ -40,4 +41,4 @@ class Reward(Base):
     quantity = Column(Integer, nullable=False)
     active = Column(Boolean, nullable=False)
 
-    # contributions = relationship('Contribution', back_populates='reward')
+    contributions = relationship('Contribution', back_populates='reward')
