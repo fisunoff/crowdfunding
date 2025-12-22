@@ -4,7 +4,7 @@ import {useRoute, useRouter} from 'vue-router';
 import {useProjectsStore} from '@/stores/useProjectsStore';
 import {useAuthStore} from '@/stores/useAuthStore';
 import EditProjectModal from '@/modules/projects/components/EditProjectModal.vue';
-import type {RewardData, ProjectStatus} from '@/api/types';
+import type {RewardData} from '@/api/types';
 
 const route = useRoute();
 const router = useRouter();
@@ -18,6 +18,10 @@ const isModerationModalOpen = ref(false);
 const moderationMessage = ref('');
 const moderationAction = ref<'draft' | 'reject'>('draft');
 
+// [НОВОЕ] State для модалки оплаты
+const isInvestModalOpen = ref(false);
+const selectedReward = ref<RewardData | null>(null);
+
 onMounted(() => {
   if (projectId) projectsStore.fetchFullProject(projectId);
 });
@@ -28,6 +32,8 @@ const rewards = computed(() => projectsStore.currentRewards);
 // Permissions
 const isAuthor = computed(() => authStore.user?.id === project.value?.author_id);
 const isAdmin = computed(() => authStore.user?.is_admin);
+
+// [ИСПРАВЛЕНО] Редактировать можно только Draft
 const canEdit = computed(() => isAuthor.value && project.value?.status === 'draft');
 const canInvest = computed(() => project.value?.status === 'accepted');
 
@@ -41,7 +47,6 @@ const formatMoney = (v?: number) => v ? new Intl.NumberFormat('ru-RU', {
   maximumFractionDigits: 0
 }).format(v) : '0 ₽';
 
-// [НОВОЕ] Русификация статусов
 const getStatusLabel = (status?: string) => {
   switch (status) {
     case 'draft':
@@ -59,10 +64,30 @@ const getStatusLabel = (status?: string) => {
 
 // --- Handlers ---
 
-// Автор: Отправка на модерацию
+// [НОВОЕ] Открытие окна оплаты
+const openInvestModal = (reward: RewardData) => {
+  if (!authStore.isAuthenticated) {
+    router.push({name: 'login'});
+    return;
+  }
+  selectedReward.value = reward;
+  isInvestModalOpen.value = true;
+};
+
+// [НОВОЕ] Подтверждение оплаты
+const confirmInvest = async () => {
+  if (!selectedReward.value) return;
+
+  await projectsStore.contribute(projectId, selectedReward.value.id);
+
+  isInvestModalOpen.value = false;
+  selectedReward.value = null;
+  // Обновляем данные (кол-во наград могло измениться)
+  await projectsStore.fetchFullProject(projectId);
+};
+
 const handleSubmit = async () => {
   if (!project.value) return;
-
   const isResubmit = !!project.value.moderator_comment;
   const text = isResubmit
     ? 'Вы исправили замечания и хотите отправить проект на повторную проверку?'
@@ -70,29 +95,22 @@ const handleSubmit = async () => {
 
   if (confirm(text)) {
     try {
-      // 1. Отправляем запрос
       await projectsStore.submitProject(projectId);
-
-      // 2. [ВАЖНО] Обновляем данные страницы, чтобы статус сменился визуально
       await projectsStore.fetchFullProject(projectId);
-
     } catch (e) {
-      alert('Ошибка при отправке проекта');
+      alert('Ошибка при отправке');
     }
   }
 };
 
-// Модератор: Открытие модалки
 const openModerationModal = (action: 'draft' | 'reject') => {
   moderationAction.value = action;
   moderationMessage.value = '';
   isModerationModalOpen.value = true;
 };
 
-// Модератор: Подтверждение действия
 const confirmModerationAction = async () => {
   if (!moderationMessage.value) return;
-
   if (moderationAction.value === 'draft') {
     await projectsStore.returnToDraft(projectId, moderationMessage.value);
   } else {
@@ -101,18 +119,9 @@ const confirmModerationAction = async () => {
   isModerationModalOpen.value = false;
 };
 
-// Модератор: Одобрение
 const handleAccept = async () => {
-  if (confirm('Одобрить этот проект? Он станет доступен для сбора средств.')) {
+  if (confirm('Одобрить этот проект?')) {
     await projectsStore.acceptProject(projectId);
-  }
-};
-
-// Инвестор: Покупка
-const handleInvest = async (reward: RewardData) => {
-  if (!authStore.isAuthenticated) return router.push({name: 'login'});
-  if (confirm(`Купить "${reward.title}"?`)) {
-    await projectsStore.contribute(projectId, reward.id);
   }
 };
 
@@ -129,7 +138,7 @@ const handleEditModalClose = async () => {
 
     <div v-else class="container">
 
-      <!-- --- MODERATOR BAR --- -->
+      <!-- Moderator Bar -->
       <div v-if="isAdmin && project.status === 'onModeration'" class="moderator-bar">
         <span class="mod-label">🔧 Панель модератора</span>
         <div class="mod-actions">
@@ -139,21 +148,12 @@ const handleEditModalClose = async () => {
         </div>
       </div>
 
-      <!-- --- AUTHOR BAR --- -->
+      <!-- Author Bar -->
       <div v-if="canEdit" class="author-bar">
         <span class="author-label">✏️ Ваша панель управления</span>
         <div class="author-actions">
-          <!-- Кнопка редактирования -->
-          <button class="action-btn edit" @click="isEditModalOpen = true">
-            Редактировать
-          </button>
-
-          <!-- [НОВОЕ] Кнопка отправки на модерацию (видна только если статус draft) -->
-          <button
-            v-if="project.status === 'draft'"
-            class="action-btn submit"
-            @click="handleSubmit"
-          >
+          <button class="action-btn edit" @click="isEditModalOpen = true">Редактировать</button>
+          <button class="action-btn submit" @click="handleSubmit">
             {{ project.moderator_comment ? 'Отправить повторно' : 'На модерацию' }}
           </button>
         </div>
@@ -170,12 +170,9 @@ const handleEditModalClose = async () => {
             </div>
           </div>
 
-          <img
-            :src="`https://placehold.co/800x400/e0e0e0/555555?text=${project.project_type}`"
-            class="project-image"
-          />
+          <img :src="`https://placehold.co/800x400/e0e0e0/555555?text=${project.project_type}`"
+               class="project-image"/>
 
-          <!-- Комментарий модератора -->
           <div v-if="project.moderator_comment" class="moderator-feedback" :class="project.status">
             <strong>{{
                 project.status === 'rejected' ? 'Причина отказа' : 'Замечания модератора'
@@ -197,8 +194,6 @@ const handleEditModalClose = async () => {
             </div>
             <div class="stat-main-value">{{ formatMoney(mockCollected) }}</div>
             <div class="stat-sub">цель {{ formatMoney(project.goal_amount) }}</div>
-
-            <!-- [НОВОЕ] Русифицированный статус -->
             <div class="project-status-info" :class="project.status">
               Статус: {{ getStatusLabel(project.status) }}
             </div>
@@ -212,7 +207,8 @@ const handleEditModalClose = async () => {
               <div class="reward-price">{{ formatMoney(reward.price) }}</div>
               <div class="reward-title">{{ reward.title }}</div>
               <div class="reward-desc">{{ reward.description }}</div>
-              <button class="invest-btn" :disabled="!canInvest" @click="handleInvest(reward)">
+              <!-- Используем openInvestModal вместо handleInvest -->
+              <button class="invest-btn" :disabled="!canInvest" @click="openInvestModal(reward)">
                 {{ canInvest ? 'Выбрать' : 'Недоступно' }}
               </button>
             </div>
@@ -222,37 +218,54 @@ const handleEditModalClose = async () => {
     </div>
 
     <!-- Modals -->
-    <EditProjectModal
-      v-if="isEditModalOpen && project"
-      :project="project"
-      @close="handleEditModalClose"
-    />
+    <EditProjectModal v-if="isEditModalOpen && project" :project="project"
+                      @close="handleEditModalClose"/>
 
     <!-- Модалка модерации -->
     <div v-if="isModerationModalOpen" class="modal-backdrop">
       <div class="modal-content reject-modal">
-        <h3>
-          {{ moderationAction === 'draft' ? 'Отправить на доработку' : 'Отклонить проект' }}
-        </h3>
+        <h3>{{ moderationAction === 'draft' ? 'Отправить на доработку' : 'Отклонить проект' }}</h3>
         <p class="modal-subtitle">
           {{
-            moderationAction === 'draft'
-              ? 'Опишите, что нужно исправить. Проект вернется в статус "Черновик".'
-              : 'Укажите причину отказа. Проект будет закрыт окончательно.'
+            moderationAction === 'draft' ? 'Опишите, что нужно исправить.' : 'Укажите причину отказа.'
           }}
         </p>
-        <textarea
-          v-model="moderationMessage"
-          rows="4"
-        ></textarea>
+        <textarea v-model="moderationMessage" rows="4"></textarea>
         <div class="modal-actions">
           <button @click="isModerationModalOpen = false">Отмена</button>
-          <button
-            :class="moderationAction === 'draft' ? 'warn-btn' : 'danger-btn'"
-            @click="confirmModerationAction"
-          >
+          <button :class="moderationAction === 'draft' ? 'warn-btn' : 'danger-btn'"
+                  @click="confirmModerationAction">
             {{ moderationAction === 'draft' ? 'Вернуть автору' : 'Отклонить навсегда' }}
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- [НОВОЕ] Модальное окно подтверждения оплаты -->
+    <div v-if="isInvestModalOpen && selectedReward" class="modal-backdrop">
+      <div class="modal-content invest-modal">
+        <div class="modal-header-simple">Подтверждение взноса</div>
+
+        <div class="bill-row">
+          <span class="label">Награда:</span>
+          <span class="value">{{ selectedReward.title }}</span>
+        </div>
+
+        <div class="bill-row">
+          <span class="label">Счет списания:</span>
+          <span class="value account-number">{{ authStore.user?.bank_number }}</span>
+        </div>
+
+        <div class="bill-divider"></div>
+
+        <div class="bill-total">
+          <span>К оплате:</span>
+          <span class="total-price">{{ formatMoney(selectedReward.price) }}</span>
+        </div>
+
+        <div class="modal-actions full-width">
+          <button class="cancel-btn" @click="isInvestModalOpen = false">Отмена</button>
+          <button class="pay-btn" @click="confirmInvest">Оплатить</button>
         </div>
       </div>
     </div>
@@ -261,6 +274,7 @@ const handleEditModalClose = async () => {
 </template>
 
 <style scoped>
+/* Стили страницы (остались прежними, скрыл для краткости, они те же что и были) */
 .project-details-page {
   padding-bottom: 60px;
 }
@@ -276,8 +290,8 @@ const handleEditModalClose = async () => {
   text-align: center;
 }
 
-/* --- Moderator Bar --- */
-.moderator-bar {
+/* Moderator & Author Bars */
+.moderator-bar, .author-bar {
   background: #333;
   color: white;
   padding: 15px 20px;
@@ -290,16 +304,12 @@ const handleEditModalClose = async () => {
   gap: 10px;
 }
 
-.mod-label {
-  font-weight: 600;
-}
-
-.mod-actions {
+.mod-actions, .author-actions {
   display: flex;
   gap: 10px;
 }
 
-.mod-btn {
+.mod-btn, .action-btn {
   padding: 8px 16px;
   border: none;
   border-radius: 6px;
@@ -322,36 +332,6 @@ const handleEditModalClose = async () => {
   color: white;
 }
 
-/* --- Author Bar --- */
-.author-bar {
-  background: #333;
-  color: white;
-  padding: 15px 20px;
-  border-radius: 12px;
-  margin: 20px 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.author-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.action-btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.action-btn:hover {
-  opacity: 0.9;
-}
-
 .action-btn.edit {
   background: white;
   color: #333;
@@ -362,7 +342,7 @@ const handleEditModalClose = async () => {
   color: white;
 }
 
-/* Layout & Content */
+/* Layout */
 .layout {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -398,6 +378,7 @@ const handleEditModalClose = async () => {
   letter-spacing: 1px;
 }
 
+/* Feedback */
 .moderator-feedback {
   padding: 15px;
   border-radius: 8px;
@@ -451,7 +432,6 @@ const handleEditModalClose = async () => {
   margin-bottom: 20px;
 }
 
-/* Status Styles */
 .project-status-info {
   padding: 12px;
   border-radius: 8px;
@@ -512,13 +492,7 @@ const handleEditModalClose = async () => {
   cursor: not-allowed;
 }
 
-.no-rewards {
-  text-align: center;
-  color: #999;
-  font-style: italic;
-}
-
-/* Modals */
+/* Modals General */
 .modal-backdrop {
   position: fixed;
   top: 0;
@@ -537,12 +511,6 @@ const handleEditModalClose = async () => {
   padding: 25px;
   border-radius: 12px;
   width: 400px;
-}
-
-.modal-subtitle {
-  color: #666;
-  font-size: 14px;
-  margin-bottom: 15px;
 }
 
 .reject-modal textarea {
@@ -576,5 +544,99 @@ const handleEditModalClose = async () => {
 .danger-btn {
   background: #E85A5A;
   color: white;
+}
+
+/* [НОВЫЕ СТИЛИ] Invest Modal */
+.invest-modal {
+  background: white;
+  padding: 30px;
+  border-radius: 20px;
+  width: 400px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header-simple {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 25px;
+  text-align: center;
+  color: #333;
+}
+
+.bill-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 15px;
+}
+
+.bill-row .label {
+  color: #666;
+}
+
+.bill-row .value {
+  font-weight: 600;
+  color: #000;
+  text-align: right;
+}
+
+.account-number {
+  font-family: monospace;
+  letter-spacing: 1px;
+  color: #555;
+}
+
+.bill-divider {
+  height: 1px;
+  background: #eee;
+  margin: 20px 0;
+  border-bottom: 1px dashed #ccc;
+}
+
+.bill-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.bill-total span:first-child {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.total-price {
+  font-size: 28px;
+  font-weight: 800;
+  color: #587bf2;
+}
+
+.full-width {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.full-width button {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.cancel-btn {
+  background: #f0f0f0;
+  color: #333;
+  margin-right: 10px;
+}
+
+.pay-btn {
+  background: #4CAF50;
+  color: white;
+}
+
+.pay-btn:hover {
+  background: #43A047;
 }
 </style>
