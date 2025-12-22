@@ -96,3 +96,12 @@ export interface RewardData extends BaseRewardData {
   id: number;
   active: boolean;
 }
+
+export interface ContribSchema {
+  id: number;
+  project_id: number;
+  reward_id: number;
+  profile_id: number;
+  status: string;
+  created_at: string;
+}

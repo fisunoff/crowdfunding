@@ -4,7 +4,7 @@ import type {
   CreatedProjectData,
   BaseProjectData,
   RewardData,
-  BaseRewardData
+  BaseRewardData, ContribSchema
 } from './types';
 
 export const projectsApi = {
@@ -79,5 +79,42 @@ export const projectsApi = {
   // DELETE /projects/{project_pk}/rewards/{pk}
   async deleteReward(projectId: number, rewardId: number): Promise<void> {
     await api.delete(`/projects/${projectId}/rewards/${rewardId}`);
-  }
+  },
+
+  // --- МОДЕРАЦИЯ ---
+
+  // POST /projects/{pk}/to_draft?message=...
+  async returnToDraft(id: number, message: string): Promise<CreatedProjectData> {
+    const response = await api.post<CreatedProjectData>(`/projects/${id}/to_draft`, null, {
+      params: {message}
+    });
+    return response.data;
+  },
+
+  // Отклонить проект окончательно (Admin)
+  async rejectProject(id: number, message: string): Promise<CreatedProjectData> {
+    const response = await api.post<CreatedProjectData>(`/projects/${id}/reject`, null, {
+      params: {message}
+    });
+    return response.data;
+  },
+
+  // Принять проект (Admin)
+  async acceptProject(id: number, message: string): Promise<CreatedProjectData> {
+    const response = await api.post<CreatedProjectData>(`/projects/${id}/accept`, null, {
+      params: {message}
+    });
+    return response.data;
+  },
+
+  // --- ВЗНОСЫ (CONTRIB) ---
+
+  // Сделать взнос (купить награду)
+  // В swagger путь странный: /contrib{project_pk}/..., добавим слэш вручную
+  async makeContribution(projectId: number, rewardId: number): Promise<ContribSchema> {
+    // Исправляем возможную опечатку в пути из Swagger
+    const response = await api.post<ContribSchema>(`/contrib/${projectId}/rewards/${rewardId}/contrib`);
+    return response.data;
+  },
+
 };
