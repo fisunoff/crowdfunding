@@ -10,12 +10,14 @@ import MainPage from "@/modules/main/MainPage.vue";
 import ProjectsPage from "@/modules/projects/ProjectsPage.vue";
 import ProjectCardPage from "@/modules/projects/projectCard/ProjectCardPage.vue";
 import InvestitionsPage from "@/modules/investitions/InvestitionsPage.vue";
+import ProfilePage from "@/modules/profile/ProfilePage.vue";
+import MyProjectsPage from "@/modules/projects/MyProjectsPage.vue";
 
 const routes: RouteRecordRaw[] = [
   {
     path: "/auth",
     component: AuthorizationPage,
-    meta: {requiresGuest: false},
+    meta: {requiresGuest: false}, // или true, как мы настраивали
     children: [
       {path: "", name: "login", component: LoginPage},
       {path: "register", name: "register", component: RegistrationPage},
@@ -29,12 +31,25 @@ const routes: RouteRecordRaw[] = [
     children: [
       {path: "", redirect: {name: "main"}},
       {path: "main", name: "main", component: MainPage},
+
+      // Проекты (общий список)
       {path: "projects", name: "projects", component: ProjectsPage},
+
+      // Мои проекты (для авторов) - ДОБАВИЛИ ЭТОТ МАРШРУТ
+      {path: "my-projects", name: "my-projects", component: MyProjectsPage},
+
+      // Карточка проекта
       {path: "projects/:id", name: "projectCard", component: ProjectCardPage, props: true},
+
+      // Вклады
       {path: "investitions", name: "investitions", component: InvestitionsPage},
+
+      // Профиль - ДОБАВИЛИ ЭТОТ МАРШРУТ
+      {path: "profile", name: "profile", component: ProfilePage},
     ],
   },
 ];
+
 
 const router = createRouter({
   history: createWebHistory(),

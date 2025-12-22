@@ -18,6 +18,7 @@ declare global {
   const apiRequest: typeof import('./api/http').apiRequest
   const authApi: typeof import('./api/auth').authApi
   const computed: typeof import('vue').computed
+  const contribApi: typeof import('./api/contrib').contribApi
   const createApp: typeof import('vue').createApp
   const createPinia: typeof import('pinia').createPinia
   const customRef: typeof import('vue').customRef
@@ -65,6 +66,7 @@ declare global {
   const onUpdated: typeof import('vue').onUpdated
   const onWatcherCleanup: typeof import('vue').onWatcherCleanup
   const profileApi: typeof import('./api/profile').profileApi
+  const projectsApi: typeof import('./api/projects').projectsApi
   const provide: typeof import('vue').provide
   const reactive: typeof import('vue').reactive
   const readonly: typeof import('vue').readonly
@@ -93,9 +95,11 @@ declare global {
   const useId: typeof import('vue').useId
   const useLink: typeof import('vue-router').useLink
   const useModel: typeof import('vue').useModel
+  const useProjectsStore: typeof import('./stores/useProjectsStore').useProjectsStore
   const useRoute: typeof import('vue-router').useRoute
   const useRouter: typeof import('vue-router').useRouter
   const useSlots: typeof import('vue').useSlots
+  const useStatsStore: typeof import('./stores/useStatsStore').useStatsStore
   const useTemplateRef: typeof import('vue').useTemplateRef
   const watch: typeof import('vue').watch
   const watchEffect: typeof import('vue').watchEffect
@@ -108,7 +112,7 @@ declare global {
   export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, ShallowRef, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
   // @ts-ignore
-  export type { AuthResponse, UserLogin, ProfileReadData, ProfileCreateData, ValidationError, HTTPValidationError } from './api/types'
+  export type { AuthResponse, UserLogin, ProfileReadData, ProfileCreateData, ValidationError, HTTPValidationError, BaseProjectData, CreatedProjectData, GlobalStatsData } from './api/types'
   import('./api/types')
 }
 
@@ -121,6 +125,7 @@ declare module 'vue' {
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly authApi: UnwrapRef<typeof import('./api/auth')['authApi']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
+    readonly contribApi: UnwrapRef<typeof import('./api/contrib')['contribApi']>
     readonly createApp: UnwrapRef<typeof import('vue')['createApp']>
     readonly createPinia: UnwrapRef<typeof import('pinia')['createPinia']>
     readonly customRef: UnwrapRef<typeof import('vue')['customRef']>
@@ -163,6 +168,7 @@ declare module 'vue' {
     readonly onUnmounted: UnwrapRef<typeof import('vue')['onUnmounted']>
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
     readonly onWatcherCleanup: UnwrapRef<typeof import('vue')['onWatcherCleanup']>
+    readonly projectsApi: UnwrapRef<typeof import('./api/projects')['projectsApi']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly reactive: UnwrapRef<typeof import('vue')['reactive']>
     readonly readonly: UnwrapRef<typeof import('vue')['readonly']>
@@ -187,9 +193,11 @@ declare module 'vue' {
     readonly useId: UnwrapRef<typeof import('vue')['useId']>
     readonly useLink: UnwrapRef<typeof import('vue-router')['useLink']>
     readonly useModel: UnwrapRef<typeof import('vue')['useModel']>
+    readonly useProjectsStore: UnwrapRef<typeof import('./stores/useProjectsStore')['useProjectsStore']>
     readonly useRoute: UnwrapRef<typeof import('vue-router')['useRoute']>
     readonly useRouter: UnwrapRef<typeof import('vue-router')['useRouter']>
     readonly useSlots: UnwrapRef<typeof import('vue')['useSlots']>
+    readonly useStatsStore: UnwrapRef<typeof import('./stores/useStatsStore')['useStatsStore']>
     readonly useTemplateRef: UnwrapRef<typeof import('vue')['useTemplateRef']>
     readonly watch: UnwrapRef<typeof import('vue')['watch']>
     readonly watchEffect: UnwrapRef<typeof import('vue')['watchEffect']>

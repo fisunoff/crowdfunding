@@ -49,3 +49,25 @@ export interface ValidationError {
 export interface HTTPValidationError {
   detail: ValidationError[];
 }
+
+export interface BaseProjectData {
+  title: string;
+  description: string;
+  goal_amount: number;
+  project_type: string;
+  start_date: string; // формат YYYY-MM-DD
+  end_date: string;   // формат YYYY-MM-DD
+}
+
+export interface CreatedProjectData extends BaseProjectData {
+  id: number;
+  author_id: number;
+  status: string;
+}
+
+
+export interface GlobalStatsData {
+  total_money: number;       // Общая сумма
+  rewards_count: number;     // Куплено наград
+  successful_projects: number; // Успешных проектов
+}
