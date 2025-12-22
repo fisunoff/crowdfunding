@@ -60,12 +60,6 @@ export interface BaseProjectData {
 }
 
 
-export interface GlobalStatsData {
-  total_money: number;       // Общая сумма
-  rewards_count: number;     // Куплено наград
-  successful_projects: number; // Успешных проектов
-}
-
 export type ProjectStatus = 'draft' | 'onModeration' | 'accepted' | 'rejected';
 
 export interface BaseProjectData {
@@ -129,4 +123,10 @@ export interface DetailedContribSchema {
   created_at: string;
   project: CreatedProjectData;
   reward: RewardData;
+}
+
+export interface GlobalStatsData {
+  total_count: number;     // Кол-во взносов/наград
+  total_amount: number;    // Сумма денег
+  cool_projects: number;   // Успешные проекты
 }

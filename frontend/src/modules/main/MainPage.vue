@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {onMounted} from 'vue';
+import {onMounted, computed} from 'vue'; // Добавил computed
 import {useRouter} from 'vue-router';
 import {useProjectsStore} from '@/stores/useProjectsStore';
 import {useStatsStore} from '@/stores/useStatsStore';
@@ -14,6 +14,13 @@ onMounted(() => {
   statsStore.fetchGlobalStats();
 });
 
+// [НОВОЕ] Фильтруем только активные проекты и берем первые 3
+const activeProjects = computed(() => {
+  return projectsStore.projects
+    .filter(p => p.status === 'accepted') // Только активные
+    .slice(0, 3); // Максимум 3 штуки
+});
+
 const goToProjects = () => {
   router.push({name: 'projects'});
 };
@@ -22,7 +29,7 @@ const goToProjectCard = (id: number) => {
   router.push({name: 'projectCard', params: {id}});
 };
 
-// Хелпер только для баннера статистики
+// Хелпер
 const formatMoney = (value: number) => {
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
@@ -40,30 +47,33 @@ const formatMoney = (value: number) => {
       <div class="stat-item">
         <div class="stat-icon">💰</div>
         <div class="stat-info">
+          <!-- Используем total_amount -->
           <div class="stat-value">
-            {{ formatMoney(statsStore.stats.total_money) }}
+            {{ formatMoney(statsStore.stats.total_amount) }}
           </div>
-          <div class="stat-label">ОБЩАЯ СУММА СОБРАННЫХ СРЕДСТВ</div>
+          <div class="stat-label">ОБЩАЯ СУММА СБОРА</div>
         </div>
       </div>
 
       <div class="stat-item">
         <div class="stat-icon">🎁</div>
         <div class="stat-info">
+          <!-- Используем total_count -->
           <div class="stat-value">
-            {{ statsStore.stats.rewards_count.toLocaleString('ru-RU') }}
+            {{ statsStore.stats.total_count.toLocaleString('ru-RU') }}
           </div>
-          <div class="stat-label">ВОЗНАГРАЖДЕНИЙ КУПЛЕНО</div>
+          <div class="stat-label">ВСЕГО ВЗНОСОВ</div>
         </div>
       </div>
 
       <div class="stat-item">
         <div class="stat-icon">🚀</div>
         <div class="stat-info">
+          <!-- Используем cool_projects -->
           <div class="stat-value">
-            {{ statsStore.stats.successful_projects.toLocaleString('ru-RU') }}
+            {{ statsStore.stats.cool_projects.toLocaleString('ru-RU') }}
           </div>
-          <div class="stat-label">УСПЕШНЫХ ПРОЕКТА</div>
+          <div class="stat-label">УСПЕШНЫХ ПРОЕКТОВ</div>
         </div>
       </div>
     </div>
@@ -85,10 +95,10 @@ const formatMoney = (value: number) => {
     </div>
 
     <!-- Projects Grid -->
-    <!-- Используем ProjectCard. Берем первые 3 проекта для главной страницы -->
-    <div v-else class="projects-grid">
+    <!-- Используем вычисляемое свойство activeProjects -->
+    <div v-else-if="activeProjects.length > 0" class="projects-grid">
       <ProjectCard
-        v-for="project in projectsStore.projects.slice(0, 3)"
+        v-for="project in activeProjects"
         :key="project.id"
         :project="project"
         @click="goToProjectCard"
@@ -96,7 +106,7 @@ const formatMoney = (value: number) => {
     </div>
 
     <!-- Empty State -->
-    <div v-if="!projectsStore.isLoading && projectsStore.projects.length === 0" class="empty-text">
+    <div v-else class="empty-text">
       Пока нет активных проектов.
     </div>
 
@@ -201,7 +211,7 @@ const formatMoney = (value: number) => {
 /* Grid */
 .projects-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* 3 колонки */
+  grid-template-columns: repeat(3, 1fr);
   gap: 30px;
 }
 
