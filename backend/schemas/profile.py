@@ -12,6 +12,7 @@ class BaseProfileData(pydantic.BaseModel):
     surname: str = pydantic.Field(max_length=255)
     patronymic: str = pydantic.Field(max_length=255)
     bank_number: str = pydantic.Field(max_length=255)
+    phone_number: str | None = None
 
 class ProfileReadData(BaseProfileData):
     id: int

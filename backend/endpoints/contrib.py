@@ -1,12 +1,14 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from pydantic import BaseModel
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from models import get_db, Contribution
 from models.project import Reward, Project
-from schemas.contrib import ContribSchema
+from schemas.contrib import ContribSchema, DetailedContribSchema
 from utils.jwt_token import verify_investor_role
 
 contrib_router = APIRouter(
@@ -24,7 +26,7 @@ async def make_contribution(
     project = await db.get(Project, project_pk)
     # todo: возможно жертвовать только при определенном статусе
     reward = await db.get(Reward, reward_pk)
-    if reward.project_id != project_pk:
+    if not reward or reward.project_id != project_pk:
         raise HTTPException(status_code=404)
     profile_contrib = Contribution(
         project_id=project_pk,
@@ -53,3 +55,45 @@ async def get_contributions(
     stmt = select(Contribution).where(Contribution.reward_id == reward_pk)
     contribs = (await db.execute(stmt)).scalars().all()
     return contribs
+
+
+@contrib_router.get('/my', response_model=list[DetailedContribSchema])
+async def get_my_contributions(
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(verify_investor_role),
+):
+    """
+    Просмотреть свои вклады. Доступно только инвестору.
+    """
+    stmt = (
+        select(Contribution)
+        .where(Contribution.profile_id == int(token_payload['sub']))
+        .options(
+            selectinload(Contribution.reward),
+            selectinload(Contribution.project),
+        )
+    )
+
+    results = (await db.execute(stmt)).scalars().all()
+    return results
+
+
+class ContribStats(BaseModel):
+    total_count: int
+    total_amount: float
+
+@contrib_router.get('/stats')
+async def get_contribution_stats(
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Общая статистика по вкладам
+    """
+    stmt = select(
+        func.count(Contribution.id).label("total_count"),
+        func.sum(Reward.price).label("total_amount")
+    ).join(Contribution.reward)
+
+    result = await db.execute(stmt)
+    stats = result.one()
+    return ContribStats(total_count=stats[0], total_amount=stats[1])
