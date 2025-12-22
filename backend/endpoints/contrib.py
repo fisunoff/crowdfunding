@@ -16,7 +16,7 @@ contrib_router = APIRouter(
 )
 
 
-@contrib_router.post('{project_pk}/rewards/{reward_pk}/contrib', response_model=ContribSchema)
+@contrib_router.post('/{project_pk}/rewards/{reward_pk}/contrib', response_model=ContribSchema)
 async def make_contribution(
         project_pk: int,
         reward_pk: int,
@@ -41,7 +41,7 @@ async def make_contribution(
     return profile_contrib
 
 
-@contrib_router.get('{project_pk}/rewards/{reward_pk}/contrib', response_model=list[ContribSchema])
+@contrib_router.get('/{project_pk}/rewards/{reward_pk}/contrib', response_model=list[ContribSchema])
 async def get_contributions(
         project_pk: int,
         reward_pk: int,
