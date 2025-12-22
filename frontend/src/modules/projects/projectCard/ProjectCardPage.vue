@@ -4,7 +4,7 @@ import {useRoute, useRouter} from 'vue-router';
 import {useProjectsStore} from '@/stores/useProjectsStore';
 import {useAuthStore} from '@/stores/useAuthStore';
 import EditProjectModal from '@/modules/projects/components/EditProjectModal.vue';
-import type {RewardData} from '@/api/types';
+import type {RewardData, ProjectStatus} from '@/api/types';
 
 const route = useRoute();
 const router = useRouter();
@@ -14,11 +14,8 @@ const projectId = Number(route.params.id);
 
 // --- State ---
 const isEditModalOpen = ref(false);
-
-// State для модалки модератора
 const isModerationModalOpen = ref(false);
 const moderationMessage = ref('');
-// Тип действия: 'draft' (на доработку) или 'reject' (отказ)
 const moderationAction = ref<'draft' | 'reject'>('draft');
 
 onMounted(() => {
@@ -27,6 +24,8 @@ onMounted(() => {
 
 const project = computed(() => projectsStore.activeProject);
 const rewards = computed(() => projectsStore.currentRewards);
+
+// Permissions
 const isAuthor = computed(() => authStore.user?.id === project.value?.author_id);
 const isAdmin = computed(() => authStore.user?.is_admin);
 const canEdit = computed(() => isAuthor.value && (project.value?.status === 'draft' || !!project.value?.moderator_comment));
@@ -42,16 +41,55 @@ const formatMoney = (v?: number) => v ? new Intl.NumberFormat('ru-RU', {
   maximumFractionDigits: 0
 }).format(v) : '0 ₽';
 
+// [НОВОЕ] Русификация статусов
+const getStatusLabel = (status?: string) => {
+  switch (status) {
+    case 'draft':
+      return 'Черновик';
+    case 'onModeration':
+      return 'На проверке';
+    case 'accepted':
+      return 'Активен';
+    case 'rejected':
+      return 'Отклонен';
+    default:
+      return status || 'Неизвестно';
+  }
+};
+
 // --- Handlers ---
 
-// 1. Открытие модалки модерации
+// Автор: Отправка на модерацию
+const handleSubmit = async () => {
+  if (!project.value) return;
+
+  const isResubmit = !!project.value.moderator_comment;
+  const text = isResubmit
+    ? 'Вы исправили замечания и хотите отправить проект на повторную проверку?'
+    : 'Отправить проект на модерацию? Вы не сможете редактировать его во время проверки.';
+
+  if (confirm(text)) {
+    try {
+      // 1. Отправляем запрос
+      await projectsStore.submitProject(projectId);
+
+      // 2. [ВАЖНО] Обновляем данные страницы, чтобы статус сменился визуально
+      await projectsStore.fetchFullProject(projectId);
+
+    } catch (e) {
+      alert('Ошибка при отправке проекта');
+    }
+  }
+};
+
+// Модератор: Открытие модалки
 const openModerationModal = (action: 'draft' | 'reject') => {
   moderationAction.value = action;
-  moderationMessage.value = ''; // сброс текста
+  moderationMessage.value = '';
   isModerationModalOpen.value = true;
 };
 
-// 2. Подтверждение действия модератора
+// Модератор: Подтверждение действия
 const confirmModerationAction = async () => {
   if (!moderationMessage.value) return;
 
@@ -63,13 +101,14 @@ const confirmModerationAction = async () => {
   isModerationModalOpen.value = false;
 };
 
-// 3. Одобрение (без модалки, просто confirm)
+// Модератор: Одобрение
 const handleAccept = async () => {
   if (confirm('Одобрить этот проект? Он станет доступен для сбора средств.')) {
     await projectsStore.acceptProject(projectId);
   }
 };
 
+// Инвестор: Покупка
 const handleInvest = async (reward: RewardData) => {
   if (!authStore.isAuthenticated) return router.push({name: 'login'});
   if (confirm(`Купить "${reward.title}"?`)) {
@@ -94,27 +133,30 @@ const handleEditModalClose = async () => {
       <div v-if="isAdmin && project.status === 'onModeration'" class="moderator-bar">
         <span class="mod-label">🔧 Панель модератора</span>
         <div class="mod-actions">
-          <!-- Кнопка: На доработку -->
-          <button class="mod-btn draft" @click="openModerationModal('draft')">
-            На доработку
-          </button>
-
-          <!-- Кнопка: Отклонить (опасно) -->
-          <button class="mod-btn reject" @click="openModerationModal('reject')">
-            Отказать
-          </button>
-
-          <!-- Кнопка: Принять -->
-          <button class="mod-btn accept" @click="handleAccept">
-            Одобрить
-          </button>
+          <button class="mod-btn draft" @click="openModerationModal('draft')">На доработку</button>
+          <button class="mod-btn reject" @click="openModerationModal('reject')">Отказать</button>
+          <button class="mod-btn accept" @click="handleAccept">Одобрить</button>
         </div>
       </div>
 
       <!-- --- AUTHOR BAR --- -->
       <div v-if="canEdit" class="author-bar">
-        <span>✏️ Вы можете редактировать этот проект</span>
-        <button class="edit-btn-small" @click="isEditModalOpen = true">Редактировать</button>
+        <span class="author-label">✏️ Ваша панель управления</span>
+        <div class="author-actions">
+          <!-- Кнопка редактирования -->
+          <button class="action-btn edit" @click="isEditModalOpen = true">
+            Редактировать
+          </button>
+
+          <!-- [НОВОЕ] Кнопка отправки на модерацию (видна только если статус draft) -->
+          <button
+            v-if="project.status === 'draft'"
+            class="action-btn submit"
+            @click="handleSubmit"
+          >
+            {{ project.moderator_comment ? 'Отправить повторно' : 'На модерацию' }}
+          </button>
+        </div>
       </div>
 
       <div class="layout">
@@ -133,7 +175,7 @@ const handleEditModalClose = async () => {
             class="project-image"
           />
 
-          <!-- Если есть комментарий модератора (для автора или если проект закрыт) -->
+          <!-- Комментарий модератора -->
           <div v-if="project.moderator_comment" class="moderator-feedback" :class="project.status">
             <strong>{{
                 project.status === 'rejected' ? 'Причина отказа' : 'Замечания модератора'
@@ -156,13 +198,15 @@ const handleEditModalClose = async () => {
             <div class="stat-main-value">{{ formatMoney(mockCollected) }}</div>
             <div class="stat-sub">цель {{ formatMoney(project.goal_amount) }}</div>
 
+            <!-- [НОВОЕ] Русифицированный статус -->
             <div class="project-status-info" :class="project.status">
-              {{ project.status === 'accepted' ? 'Активен' : project.status }}
+              Статус: {{ getStatusLabel(project.status) }}
             </div>
           </div>
 
           <div class="rewards-section">
             <h3>Вознаграждения</h3>
+            <div v-if="rewards.length === 0" class="no-rewards">Нет доступных наград</div>
             <div v-for="reward in rewards" :key="reward.id" class="reward-card"
                  :class="{ disabled: !canInvest }">
               <div class="reward-price">{{ formatMoney(reward.price) }}</div>
@@ -184,7 +228,7 @@ const handleEditModalClose = async () => {
       @close="handleEditModalClose"
     />
 
-    <!-- Универсальная модалка модерации -->
+    <!-- Модалка модерации -->
     <div v-if="isModerationModalOpen" class="modal-backdrop">
       <div class="modal-content reject-modal">
         <h3>
@@ -197,17 +241,12 @@ const handleEditModalClose = async () => {
               : 'Укажите причину отказа. Проект будет закрыт окончательно.'
           }}
         </p>
-
         <textarea
           v-model="moderationMessage"
           rows="4"
-          :placeholder="moderationAction === 'draft' ? 'Например: Загрузите более качественное фото...' : 'Причина...'"
         ></textarea>
-
         <div class="modal-actions">
           <button @click="isModerationModalOpen = false">Отмена</button>
-
-          <!-- Кнопка меняет цвет в зависимости от действия -->
           <button
             :class="moderationAction === 'draft' ? 'warn-btn' : 'danger-btn'"
             @click="confirmModerationAction"
@@ -237,7 +276,7 @@ const handleEditModalClose = async () => {
   text-align: center;
 }
 
-/* Moderator Bar */
+/* --- Moderator Bar --- */
 .moderator-bar {
   background: #333;
   color: white;
@@ -273,20 +312,17 @@ const handleEditModalClose = async () => {
   color: white;
 }
 
-/* Желтый */
 .mod-btn.reject {
   background: #E85A5A;
   color: white;
 }
 
-/* Красный */
 .mod-btn.accept {
   background: #4CAF50;
   color: white;
 }
 
-/* Зеленый */
-
+/* --- Author Bar --- */
 .author-bar {
   background: #333;
   color: white;
@@ -298,17 +334,35 @@ const handleEditModalClose = async () => {
   align-items: center;
 }
 
-.edit-btn-small {
-  background: white;
-  color: #333;
-  padding: 8px 16px;
+.author-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.action-btn {
+  padding: 10px 20px;
   border: none;
   border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
+  transition: opacity 0.2s;
 }
 
-/* Layout */
+.action-btn:hover {
+  opacity: 0.9;
+}
+
+.action-btn.edit {
+  background: white;
+  color: #333;
+}
+
+.action-btn.submit {
+  background: #587bf2;
+  color: white;
+}
+
+/* Layout & Content */
 .layout {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -344,7 +398,6 @@ const handleEditModalClose = async () => {
   letter-spacing: 1px;
 }
 
-/* Feedback Box */
 .moderator-feedback {
   padding: 15px;
   border-radius: 8px;
@@ -398,18 +451,34 @@ const handleEditModalClose = async () => {
   margin-bottom: 20px;
 }
 
+/* Status Styles */
 .project-status-info {
-  background: #f5f5f5;
-  padding: 10px;
+  padding: 12px;
   border-radius: 8px;
   text-align: center;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
+  text-transform: uppercase;
+}
+
+.project-status-info.draft {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.project-status-info.onModeration {
+  background: #FFF3E0;
+  color: #EF6C00;
 }
 
 .project-status-info.accepted {
-  color: #4CAF50;
   background: #E8F5E9;
+  color: #2E7D32;
+}
+
+.project-status-info.rejected {
+  background: #FFEBEE;
+  color: #C62828;
 }
 
 /* Rewards */
@@ -443,7 +512,13 @@ const handleEditModalClose = async () => {
   cursor: not-allowed;
 }
 
-/* Modal */
+.no-rewards {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+}
+
+/* Modals */
 .modal-backdrop {
   position: fixed;
   top: 0;
