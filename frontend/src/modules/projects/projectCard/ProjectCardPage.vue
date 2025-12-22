@@ -28,7 +28,7 @@ const rewards = computed(() => projectsStore.currentRewards);
 // Permissions
 const isAuthor = computed(() => authStore.user?.id === project.value?.author_id);
 const isAdmin = computed(() => authStore.user?.is_admin);
-const canEdit = computed(() => isAuthor.value && (project.value?.status === 'draft' || !!project.value?.moderator_comment));
+const canEdit = computed(() => isAuthor.value && project.value?.status === 'draft');
 const canInvest = computed(() => project.value?.status === 'accepted');
 
 // Helpers UI
