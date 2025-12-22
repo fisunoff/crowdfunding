@@ -10,20 +10,25 @@ const projectsStore = useProjectsStore();
 const searchQuery = ref('');
 
 onMounted(() => {
-  // Загружаем проекты, если они еще не загружены или нужно обновить
+  // Загружаем проекты
   projectsStore.fetchProjects();
 });
 
-// Фильтрация проектов на клиенте
+// Фильтрация: Поиск + Статус "accepted"
 const filteredProjects = computed(() => {
+  // 1. Сначала берем только активные (одобренные) проекты
+  let projects = projectsStore.projects.filter(p => p.status === 'accepted');
+
+  // 2. Затем применяем поиск, если введен текст
   const query = searchQuery.value.toLowerCase().trim();
-  if (!query) {
-    return projectsStore.projects;
+  if (query) {
+    projects = projects.filter(p =>
+      p.title.toLowerCase().includes(query) ||
+      p.description.toLowerCase().includes(query)
+    );
   }
-  return projectsStore.projects.filter(p =>
-    p.title.toLowerCase().includes(query) ||
-    p.description.toLowerCase().includes(query)
-  );
+
+  return projects;
 });
 
 const handleCardClick = (id: number) => {
@@ -43,7 +48,6 @@ const handleCardClick = (id: number) => {
           placeholder="Поиск проектов..."
           class="search-input"
         />
-        <!-- Можно добавить иконку лупы справа, если нужно -->
       </div>
     </div>
 
@@ -62,7 +66,7 @@ const handleCardClick = (id: number) => {
 
       <!-- Empty Filter Result -->
       <div v-else-if="filteredProjects.length === 0" class="state-message">
-        Ничего не найдено
+        {{ searchQuery ? 'Ничего не найдено' : 'Пока нет активных проектов' }}
       </div>
 
       <!-- Grid -->
@@ -92,9 +96,8 @@ const handleCardClick = (id: number) => {
 
 /* Header Styles */
 .search-header {
-  background-color: #E0E0E0; /* Серый фон хедера */
+  background-color: #E0E0E0;
   padding: 40px 0;
-  /* Градиент или тень, чтобы выглядело как на макете (сверху вниз) */
   background: linear-gradient(180deg, #EBEBEB 0%, #D6D6D6 100%);
   border-bottom: 1px solid #ccc;
 }
@@ -103,8 +106,8 @@ const handleCardClick = (id: number) => {
   width: 100%;
   background: transparent;
   border: none;
-  font-size: 48px; /* Крупный шрифт как на макете */
-  font-weight: 300; /* Тонкий шрифт */
+  font-size: 48px;
+  font-weight: 300;
   color: #999;
   outline: none;
 }
@@ -125,7 +128,7 @@ const handleCardClick = (id: number) => {
 
 .projects-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* Ровно 3 колонки как на макете */
+  grid-template-columns: repeat(3, 1fr);
   gap: 30px;
 }
 
