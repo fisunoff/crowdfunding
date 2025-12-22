@@ -18,7 +18,6 @@ onMounted(() => {
 
 const myProjects = computed(() => {
   if (!authStore.user) return [];
-  // Фильтруем по ID автора
   return projectsStore.projects.filter(p => p.author_id === authStore.user!.id);
 });
 
@@ -36,11 +35,11 @@ const handleCreateProject = async (data: BaseProjectData) => {
 };
 
 const handleDelete = async (id: number) => {
-  if (confirm('Вы уверены, что хотите удалить этот проект?')) {
+  if (confirm('Удалить проект? Это действие необратимо.')) {
     try {
       await projectsStore.deleteProject(id);
     } catch (e) {
-      alert('Ошибка при удалении. Возможно, удаление запрещено на текущей стадии.');
+      alert('Невозможно удалить проект на текущей стадии.');
     }
   }
 };
@@ -49,11 +48,9 @@ const handleSubmit = async (id: number) => {
   try {
     await projectsStore.submitProject(id);
   } catch (e) {
-    alert('Ошибка при отправке на модерацию');
+    alert('Ошибка при отправке.');
   }
 };
-
-// --- Helpers для статусов ---
 
 const getStatusLabel = (status: ProjectStatus) => {
   switch (status) {
@@ -85,9 +82,7 @@ const getStatusLabel = (status: ProjectStatus) => {
 
     <div class="container content-area">
 
-      <div v-if="projectsStore.isLoading" class="state-message">
-        Загрузка...
-      </div>
+      <div v-if="projectsStore.isLoading" class="state-message">Загрузка...</div>
 
       <div v-else-if="myProjects.length === 0" class="empty-state">
         <div class="empty-icon">📂</div>
@@ -96,47 +91,61 @@ const getStatusLabel = (status: ProjectStatus) => {
       </div>
 
       <div v-else class="projects-grid">
-        <div v-for="project in myProjects" :key="project.id" class="project-wrapper">
+        <div v-for="project in myProjects" :key="project.id" class="project-column">
+          <div class="project-wrapper">
 
-          <!-- STATUS BADGE -->
-          <div class="status-badge" :class="project.status">
-            {{ getStatusLabel(project.status) }}
-          </div>
+            <!-- Бейдж статуса -->
+            <div class="status-badge" :class="project.status">
+              {{ getStatusLabel(project.status) }}
+            </div>
 
-          <ProjectCard
-              :project="project"
-              @click="handleCardClick"
-          />
+            <ProjectCard
+                :project="project"
+                @click="handleCardClick"
+            />
 
-          <!-- CONTROL PANEL -->
-          <div class="control-panel">
-
-            <!-- Кнопка "На модерацию": Только для Draft -->
-            <button
-                v-if="project.status === 'draft'"
-                class="control-btn submit-btn"
-                @click.stop="handleSubmit(project.id)"
-            >
-              На модерацию
-            </button>
-
-            <!-- Кнопка удаления: Draft или OnModeration (согласно Swagger) -->
-            <button
-                v-if="['draft', 'onModeration'].includes(project.status)"
-                class="control-btn delete-btn"
-                @click.stop="handleDelete(project.id)"
-            >
-              Удалить
-            </button>
-
-            <!-- Для активных или отклоненных можно показать заглушку или ничего -->
+            <!-- Блок сообщения от модератора -->
+            <!-- Показываем, если есть комментарий И (статус draft ИЛИ rejected) -->
             <div
-                v-if="['accepted', 'rejected'].includes(project.status)"
-                class="status-info"
+                v-if="project.moderator_comment && (project.status === 'draft' || project.status === 'rejected')"
+                class="moderator-message"
                 :class="project.status"
             >
-              {{ project.status === 'accepted' ? 'Сбор средств идет' : 'Проект закрыт' }}
+              <div class="mod-title">
+                {{ project.status === 'rejected' ? 'Причина отказа:' : 'Замечания модератора:' }}
+              </div>
+              <div class="mod-text">{{ project.moderator_comment }}</div>
             </div>
+
+            <!-- Панель управления -->
+            <div class="control-panel">
+              <!-- Отправить можно только Черновик -->
+              <button
+                  v-if="project.status === 'draft'"
+                  class="control-btn submit-btn"
+                  @click.stop="handleSubmit(project.id)"
+              >
+                {{ project.moderator_comment ? 'Отправить повторно' : 'На модерацию' }}
+              </button>
+
+              <!-- Удалить можно Черновик или На проверке (если передумал) -->
+              <button
+                  v-if="['draft', 'onModeration'].includes(project.status)"
+                  class="control-btn delete-btn"
+                  @click.stop="handleDelete(project.id)"
+              >
+                Удалить
+              </button>
+
+              <!-- Для активных проектов -->
+              <div
+                  v-if="project.status === 'accepted'"
+                  class="status-info accepted"
+              >
+                Проект активен 🚀
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -220,13 +229,19 @@ const getStatusLabel = (status: ProjectStatus) => {
   }
 }
 
-.project-wrapper {
-  position: relative;
+.project-column {
   display: flex;
   flex-direction: column;
 }
 
-/* --- Status Badge Styles --- */
+.project-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Status Badge */
 .status-badge {
   position: absolute;
   top: 15px;
@@ -243,19 +258,45 @@ const getStatusLabel = (status: ProjectStatus) => {
 }
 
 .status-badge.draft {
-  background-color: #9E9E9E; /* Серый */
+  background-color: #9E9E9E;
 }
 
 .status-badge.onModeration {
-  background-color: #FFB039; /* Желтый/Оранжевый */
+  background-color: #FFB039;
 }
 
 .status-badge.accepted {
-  background-color: #4CAF50; /* Зеленый */
+  background-color: #4CAF50;
 }
 
 .status-badge.rejected {
-  background-color: #E85A5A; /* Красный */
+  background-color: #E85A5A;
+}
+
+/* Moderator Message Block */
+.moderator-message {
+  margin-top: 15px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.moderator-message.draft {
+  background-color: #FFF8E1; /* Светло-желтый */
+  border: 1px solid #FFECB3;
+  color: #8D6E63;
+}
+
+.moderator-message.rejected {
+  background-color: #FFEBEE; /* Светло-красный */
+  border: 1px solid #FFCDD2;
+  color: #B71C1C;
+}
+
+.mod-title {
+  font-weight: 700;
+  margin-bottom: 4px;
 }
 
 /* Control Panel */
@@ -263,7 +304,6 @@ const getStatusLabel = (status: ProjectStatus) => {
   margin-top: 15px;
   display: flex;
   gap: 10px;
-  min-height: 40px;
   align-items: center;
 }
 
@@ -292,7 +332,6 @@ const getStatusLabel = (status: ProjectStatus) => {
   color: white;
 }
 
-/* Status Info Text (instead of buttons) */
 .status-info {
   width: 100%;
   text-align: center;
@@ -306,11 +345,6 @@ const getStatusLabel = (status: ProjectStatus) => {
 .status-info.accepted {
   color: #4CAF50;
   background: rgba(76, 175, 80, 0.1);
-}
-
-.status-info.rejected {
-  color: #E85A5A;
-  background: rgba(232, 90, 90, 0.1);
 }
 
 /* Empty State */

@@ -15,53 +15,69 @@ export const useProjectsStore = defineStore('projects', () => {
     try {
       const realProjects = await projectsApi.getProjects();
 
-      // MOCK DATA для проверки всех статусов
-      // Предполагаем, что ID текущего юзера = 1 (как в useAuthStore моках, если бы они были)
-      // В реальном приложении фильтрация идет по author_id, убедись, что он совпадает с твоим юзером
+      // MOCK DATA
+      // author_id: 1 - предполагаем, что это текущий юзер
       const mockProjects: CreatedProjectData[] = [
         {
           id: 901,
-          author_id: 1, // Твой ID
+          author_id: 1,
           status: 'draft',
-          title: 'Черновик: Книга о грибах',
-          description: 'Нужно доработать описание и добавить фото...',
+          title: 'Просто черновик',
+          description: 'Я только начал заполнять этот проект.',
           goal_amount: 50000,
           project_type: 'Литература',
           start_date: '2024-06-01',
-          end_date: '2024-09-01'
+          end_date: '2024-09-01',
+          moderator_comment: null // Комментария нет
         },
         {
           id: 902,
-          author_id: 1, // Твой ID
+          author_id: 1,
           status: 'onModeration',
-          title: 'На проверке: Умный ошейник',
-          description: 'Проект отправлен модератору, ждем решения.',
+          title: 'Умный ошейник v2',
+          description: 'Ждем решения администратора.',
           goal_amount: 250000,
           project_type: 'Технологии',
           start_date: '2024-05-15',
-          end_date: '2024-08-15'
+          end_date: '2024-08-15',
+          moderator_comment: null
         },
         {
           id: 903,
-          author_id: 1, // Твой ID
+          author_id: 1,
           status: 'accepted',
-          title: 'Активен: Фестиваль джаза',
-          description: 'Проект одобрен и сбор средств уже идет!',
+          title: 'Фестиваль джаза',
+          description: 'Проект одобрен и собирает деньги.',
           goal_amount: 1000000,
           project_type: 'События',
           start_date: '2024-05-01',
-          end_date: '2024-10-01'
+          end_date: '2024-10-01',
+          moderator_comment: 'Отличный проект, удачи!' // Иногда админ может написать и хорошее
         },
         {
           id: 904,
-          author_id: 1, // Твой ID
+          author_id: 1,
           status: 'rejected',
-          title: 'Отклонен: Сбор на пиво',
-          description: 'К сожалению, проект не соответствует правилам платформы.',
+          title: 'Сбор на вечеринку',
+          description: 'Отказано полностью.',
           goal_amount: 5000,
           project_type: 'Развлечения',
           start_date: '2024-01-01',
-          end_date: '2024-02-01'
+          end_date: '2024-02-01',
+          moderator_comment: 'Нарушение правил платформы: сбор личных средств запрещен.'
+        },
+        // ВАЖНЫЙ КЕЙС: Вернули на доработку
+        {
+          id: 905,
+          author_id: 1,
+          status: 'draft',
+          title: 'Книга о грибах (Нужны правки)',
+          description: 'Описание проекта...',
+          goal_amount: 100000,
+          project_type: 'Книги',
+          start_date: '2024-01-01',
+          end_date: '2024-02-01',
+          moderator_comment: 'Пожалуйста, добавьте смету расходов в описание и загрузите более качественную обложку.'
         }
       ];
 
@@ -75,7 +91,7 @@ export const useProjectsStore = defineStore('projects', () => {
     }
   }
 
-  // ... createProject, deleteProject, submitProject оставляем такими же ...
+  // ... остальные методы (create, delete, submit) без изменений
   async function createProject(data: BaseProjectData) {
     isLoading.value = true;
     try {
@@ -90,37 +106,14 @@ export const useProjectsStore = defineStore('projects', () => {
   }
 
   async function deleteProject(id: number) {
-    try {
-      await projectsApi.deleteProject(id);
-      projects.value = projects.value.filter(p => p.id !== id);
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    await projectsApi.deleteProject(id);
+    projects.value = projects.value.filter(p => p.id !== id);
   }
 
   async function submitProject(id: number) {
-    try {
-      // Оптимистичное обновление интерфейса
-      // Сначала меняем статус локально, чтобы юзер сразу увидел результат
-      const index = projects.value.findIndex(p => p.id === id);
-      if (index !== -1) {
-        // Предполагаем, что после сабмита статус становится onModeration
-        projects.value[index].status = 'onModeration';
-      }
-
-      const updatedProject = await projectsApi.submitProject(id);
-
-      // Обновляем реальными данными с сервера
-      if (index !== -1) {
-        projects.value[index] = updatedProject;
-      }
-    } catch (err) {
-      console.error(err);
-      // Если ошибка - откатываем статус (можно добавить перезагрузку списка)
-      await fetchProjects();
-      throw err;
-    }
+    const updated = await projectsApi.submitProject(id);
+    const index = projects.value.findIndex(p => p.id === id);
+    if (index !== -1) projects.value[index] = updated;
   }
 
   return {

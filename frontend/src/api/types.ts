@@ -68,8 +68,19 @@ export interface GlobalStatsData {
 
 export type ProjectStatus = 'draft' | 'onModeration' | 'accepted' | 'rejected';
 
+export interface BaseProjectData {
+  title: string;
+  description: string;
+  goal_amount: number;
+  project_type: string;
+  start_date: string;
+  end_date: string;
+}
+
 export interface CreatedProjectData extends BaseProjectData {
   id: number;
   author_id: number;
-  status: ProjectStatus; // Используем новый тип вместо простого string
+  status: ProjectStatus;
+  // Новое поле из спецификации
+  moderator_comment?: string | null;
 }
