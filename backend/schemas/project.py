@@ -16,3 +16,4 @@ class CreatedProjectData(BaseProjectData):
     id: int
     author_id: int
     status: str
+    moderator_comment: str | None = None

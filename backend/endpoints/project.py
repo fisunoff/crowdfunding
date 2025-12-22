@@ -8,7 +8,7 @@ from models import get_db, Project
 from models.project import Reward
 from schemas.project import CreatedProjectData, BaseProjectData
 from schemas.reward import RewardData, BaseRewardData
-from utils.jwt_token import verify_token, verify_author_role
+from utils.jwt_token import verify_token, verify_author_role, verify_admin_role
 
 project_router = APIRouter(
     tags=['Проекты'],
@@ -92,6 +92,59 @@ async def submit_project(
     await db.commit()
     await db.refresh(project)
     return project
+
+
+@project_router.post(
+    '/{pk}/reject',
+    response_model=CreatedProjectData,
+)
+async def reject_project(
+        pk: int,
+        message: str,
+        db: AsyncSession = Depends(get_db),
+        token_payload: dict = Depends(verify_admin_role),
+):
+    """
+    Отказать проекту. Доступно администратору.
+    """
+    project = await db.get(Project, pk)
+    await verify_project_by_author(project, token_payload['sub'])
+
+    if project.status != 'onModeration':
+        raise HTTPException(status_code=403, detail='Проекту нельзя, так как он не находится на модерации.')
+    project.status = 'rejected'
+    project.message = message
+    db.add(project)
+    await db.commit()
+    await db.refresh(project)
+    return project
+
+
+@project_router.post(
+    '/{pk}/accept',
+    response_model=CreatedProjectData,
+)
+async def accept_project(
+        pk: int,
+        message: str,
+        db: AsyncSession = Depends(get_db),
+        token_payload: dict = Depends(verify_admin_role),
+):
+    """
+    Подтвердить проект. Доступно администратору.
+    """
+    project = await db.get(Project, pk)
+    await verify_project_by_author(project, token_payload['sub'])
+
+    if project.status != 'onModeration':
+        raise HTTPException(status_code=403, detail='Проект нельзя подтвердить, так как он не находится на модерации.')
+    project.status = 'accepted'
+    project.message = message
+    db.add(project)
+    await db.commit()
+    await db.refresh(project)
+    return project
+
 
 @project_router.get('/{pk}', response_model=CreatedProjectData)
 async def get_project(

@@ -23,6 +23,7 @@ class Project(Base):
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     status = Column(String, nullable=False)
+    moderator_comment = Column(String, nullable=True)
 
     rewards = relationship('Reward', back_populates='project')
     contributions = relationship('Contribution', back_populates='project')
