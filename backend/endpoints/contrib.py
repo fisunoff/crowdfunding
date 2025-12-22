@@ -116,4 +116,4 @@ async def get_contribution_stats(
         if total >= goal_amount:
             cool_projects += 1
 
-    return ContribStats(total_count=stats[0], total_amount=stats[1], cool_projects=cool_projects)
+    return ContribStats(total_count=stats[0] or 0, total_amount=stats[1] or 0, cool_projects=cool_projects)
