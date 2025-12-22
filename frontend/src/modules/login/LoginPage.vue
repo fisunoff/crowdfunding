@@ -24,14 +24,11 @@ const handleLogin = async () => {
   }
 
   try {
-    // В API логин не зависит от роли (она определяется на бэке),
-    // но визуально переключатель есть.
     await authStore.login({
       login: loginForm.value.login,
       password: loginForm.value.password
     });
-    // Редирект происходит внутри store или здесь:
-    // router.push({ name: 'main' });
+    // Редирект происходит внутри store (обычно на 'main')
   } catch (e) {
     // Ошибки обрабатываются в store (authStore.error)
   }
@@ -42,12 +39,12 @@ const handleLogin = async () => {
   <div class="auth-page">
     <div class="auth-card">
       <!-- Icon Header -->
-      <!-- Внутри template .auth-card -->
       <div class="icon-container">
-        <!-- Исправленная иконка входа -->
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <!-- Кружок вокруг человечка (как на макете) -->
-          <path d="M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z" stroke="white" stroke-width="1.5" stroke-dasharray="2 4"/>
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
+             xmlns="http://www.w3.org/2000/svg">
+          <!-- Кружок вокруг человечка -->
+          <path d="M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z" stroke="white" stroke-width="1.5"
+                stroke-dasharray="2 4"/>
           <!-- Человечек -->
           <circle cx="12" cy="10" r="3" stroke="white" stroke-width="1.5"/>
           <path d="M7 20v-1a5 5 0 0 1 5-5h0a5 5 0 0 1 5 5v1" stroke="white" stroke-width="1.5"/>
@@ -59,16 +56,18 @@ const handleLogin = async () => {
 
       <!-- Inputs -->
       <form @submit.prevent="handleLogin">
+
+        <!-- Изменили type на text и placeholder -->
         <BaseInput
-            v-model="loginForm.login"
-            placeholder="Адрес электронной почты"
-            type="email"
+          v-model="loginForm.login"
+          placeholder="Логин / Email"
+          type="text"
         />
 
         <BaseInput
-            v-model="loginForm.password"
-            placeholder="Пароль"
-            type="password"
+          v-model="loginForm.password"
+          placeholder="Пароль"
+          type="password"
         />
 
         <!-- Checkbox -->
@@ -97,19 +96,18 @@ const handleLogin = async () => {
 </template>
 
 <style scoped>
-/* Общие стили для страниц авторизации можно вынести, но пока оставим тут */
 .auth-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f2f2f2; /* Светло-серый фон страницы */
+  background-color: #f2f2f2;
 }
 
 .auth-card {
   width: 100%;
   max-width: 400px;
-  background-color: #9ab4ff; /* Основной сиреневый цвет карточки */
+  background-color: #9ab4ff;
   border-radius: 20px;
   padding: 40px 30px;
   box-shadow: 0 10px 25px rgba(154, 180, 255, 0.4);

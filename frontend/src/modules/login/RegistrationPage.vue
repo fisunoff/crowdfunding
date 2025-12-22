@@ -4,33 +4,37 @@ import {useRouter} from 'vue-router';
 import {useAuthStore} from '@/stores/useAuthStore';
 import BaseInput from '@/components/BaseInput.vue';
 import BaseCheckbox from '@/components/BaseCheckbox.vue';
-import RoleSwitcher from '@/components/RoleSwitcher.vue'; // Добавил, т.к. бэку нужна роль
+import RoleSwitcher from '@/components/RoleSwitcher.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
 
-const role = ref<'investor' | 'author'>('investor'); // По умолчанию инвестор
+const role = ref<'investor' | 'author'>('investor');
 const form = ref({
   email: '',
   password: '',
   confirmPassword: '',
-  phone: '', // API требует bank_number, замапим сюда
-  fio: '' // API требует name, surname, patronymic
+  phone: '',
+  bankNumber: '',
+  fio: ''
 });
 const isAgreed = ref(false);
 
 const handleRegister = async () => {
-  // Валидация
+  // Валидация галочки
   if (!isAgreed.value) {
     alert('Необходимо согласиться с условиями');
     return;
   }
+  // Валидация паролей
   if (form.value.password !== form.value.confirmPassword) {
     alert('Пароли не совпадают');
     return;
   }
 
-  // Парсинг ФИО: "Иванов Иван Иванович"
+  // Убрали проверку на обязательность bankNumber
+
+  // Парсинг ФИО
   const fioParts = form.value.fio.trim().split(/\s+/);
   if (fioParts.length < 2) {
     alert('Введите Фамилию и Имя');
@@ -39,24 +43,32 @@ const handleRegister = async () => {
 
   const surname = fioParts[0];
   const name = fioParts[1];
-  const patronymic = fioParts.slice(2).join(' '); // Все остальное в отчество
+  const patronymic = fioParts.slice(2).join(' ') || '';
 
   try {
     await authStore.register({
       login: form.value.email,
       password: form.value.password,
+
       name: name,
       surname: surname,
-      patronymic: patronymic || undefined,
-      bank_number: form.value.phone, // Мапим телефон в bank_number
+      patronymic: patronymic,
+
+      phone_number: form.value.phone || null,
+
+      // Отправляем то, что ввел пользователь.
+      // Если бэкенд требует это поле, но пользователь оставил пустым — бэкенд вернет ошибку.
+      // Если вы хотите отправлять "заглушку", можно написать: form.value.bankNumber || 'Нет счета'
+      bank_number: form.value.bankNumber || '',
+
       is_author: role.value === 'author',
       is_investor: role.value === 'investor',
       is_admin: false
     });
-    // После успешной регистрации (и авто-логина внутри стора)
+
     router.push({name: 'main'});
   } catch (e) {
-    // Ошибки в store
+    // Ошибки отображаются в шаблоне через authStore.error
   }
 };
 </script>
@@ -64,32 +76,33 @@ const handleRegister = async () => {
 <template>
   <div class="auth-page">
     <div class="auth-card">
-      <!-- Внутри template .auth-card -->
+
       <div class="icon-container">
-        <!-- Исправленная иконка регистрации -->
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <!-- Голова -->
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
+             xmlns="http://www.w3.org/2000/svg">
           <circle cx="10" cy="8" r="4" stroke="white" stroke-width="1.5"/>
-          <!-- Тело -->
-          <path d="M4 20C4 16.6863 6.68629 14 10 14H11" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-          <!-- Плюсик (сдвинут чтобы не налезать) -->
+          <path d="M4 20C4 16.6863 6.68629 14 10 14H11" stroke="white" stroke-width="1.5"
+                stroke-linecap="round"/>
           <path d="M19 8V14M16 11H22" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
       </div>
 
-      <!-- Role Switcher (Добавлено, чтобы соблюсти API) -->
       <RoleSwitcher v-model="role"/>
 
       <form @submit.prevent="handleRegister">
-        <BaseInput v-model="form.email" placeholder="Адрес электронной почты" type="email"/>
+
+        <BaseInput v-model="form.email" placeholder="Логин / Email"/>
 
         <BaseInput v-model="form.password" placeholder="Придумайте пароль" type="password"/>
-
         <BaseInput v-model="form.confirmPassword" placeholder="Подтвердите пароль" type="password"/>
+
+        <!-- Исправленный плейсхолдер -->
+        <BaseInput v-model="form.fio" placeholder="ФИО"/>
 
         <BaseInput v-model="form.phone" placeholder="Номер телефона" type="tel"/>
 
-        <BaseInput v-model="form.fio" placeholder="ФИО"/>
+        <!-- Теперь не обязательное поле (визуально) -->
+        <BaseInput v-model="form.bankNumber" placeholder="Номер банковского счета"/>
 
         <div class="checkbox-row text-left">
           <BaseCheckbox v-model="isAgreed">
@@ -100,7 +113,7 @@ const handleRegister = async () => {
         </div>
 
         <button type="submit" class="submit-btn" :disabled="authStore.isLoading">
-          {{ authStore.isLoading ? 'Создание...' : 'Создать' }}
+          {{ authStore.isLoading ? 'Создание...' : 'Создать аккаунт' }}
         </button>
 
         <div v-if="authStore.error" class="error-text">
@@ -108,7 +121,6 @@ const handleRegister = async () => {
         </div>
       </form>
 
-      <!-- Ссылка назад на вход, если пользователь передумал -->
       <div class="footer-link">
         <router-link :to="{ name: 'login' }" class="link">У меня уже есть аккаунт</router-link>
       </div>
@@ -118,16 +130,13 @@ const handleRegister = async () => {
 </template>
 
 <style scoped>
-/* Дублирование стилей для простоты.
-   В идеале .auth-page и .auth-card выносятся в layout или общий css */
-
 .auth-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   background-color: #f2f2f2;
-  padding: 20px; /* Отступ для мобильных */
+  padding: 20px;
 }
 
 .auth-card {
