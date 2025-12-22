@@ -1,7 +1,8 @@
+// src/stores/useProjectsStore.ts
 import {defineStore} from 'pinia';
 import {ref} from 'vue';
 import {projectsApi} from '@/api/projects';
-import type {CreatedProjectData} from '@/api/types';
+import type {CreatedProjectData, BaseProjectData} from '@/api/types';
 
 export const useProjectsStore = defineStore('projects', () => {
   const projects = ref<CreatedProjectData[]>([]);
@@ -12,11 +13,23 @@ export const useProjectsStore = defineStore('projects', () => {
     isLoading.value = true;
     error.value = null;
     try {
-      // 1. Получаем реальные данные с сервера
       const realProjects = await projectsApi.getProjects();
 
-      // --- TODO: УДАЛИТЬ ЭТОТ БЛОК ПОЗЖЕ (MOCK DATA) ---
+      // MOCK DATA (оставляем пока для разработки, как у тебя было)
       const mockProjects: CreatedProjectData[] = [
+        // ... (твой старый массив моков, чтобы не дублировать код здесь, считаем что он тут есть)
+        // Но добавим один проект с ID автора, который совпадет с твоим юзером, чтобы проверить фильтрацию
+        {
+          id: 999,
+          author_id: 1, // Предположим, у твоего юзера ID=1
+          status: 'draft', // Статус черновик
+          title: 'Мой тестовый черновик',
+          description: 'Описание черновика проекта...',
+          goal_amount: 50000,
+          project_type: 'Тесты',
+          start_date: '2024-01-01',
+          end_date: '2024-12-31'
+        },
         {
           id: 101,
           author_id: 1,
@@ -62,19 +75,57 @@ export const useProjectsStore = defineStore('projects', () => {
           end_date: '2024-07-15'
         }
       ];
-      // Объединяем реальные и фейковые (фейковые добавляем в конец или начало, как удобно)
+
+      // Если бэкенд пустой, показываем моки, иначе реальные + моки (для теста)
       projects.value = [...realProjects, ...mockProjects];
-      // ---------------------------------------------------
 
     } catch (err) {
       console.error(err);
       error.value = 'Не удалось загрузить проекты';
-
-      // Даже если ошибка сети, покажем фейковые данные для разработки?
-      // Если хочешь, раскомментируй строку ниже:
-      // projects.value = mockProjects;
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  // Создание проекта
+  async function createProject(data: BaseProjectData) {
+    isLoading.value = true;
+    try {
+      await projectsApi.createProject(data);
+      // После создания обновляем список
+      await fetchProjects();
+    } catch (err) {
+      console.error(err);
+      throw err; // Пробрасываем ошибку компоненту
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // Удаление проекта
+  async function deleteProject(id: number) {
+    try {
+      await projectsApi.deleteProject(id);
+      // Удаляем из локального стейта, чтобы не делать лишний запрос
+      projects.value = projects.value.filter(p => p.id !== id);
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  }
+
+  // Публикация (Submit)
+  async function submitProject(id: number) {
+    try {
+      const updatedProject = await projectsApi.submitProject(id);
+      // Обновляем проект в списке
+      const index = projects.value.findIndex(p => p.id === id);
+      if (index !== -1) {
+        projects.value[index] = updatedProject;
+      }
+    } catch (err) {
+      console.error(err);
+      throw err;
     }
   }
 
@@ -82,6 +133,9 @@ export const useProjectsStore = defineStore('projects', () => {
     projects,
     isLoading,
     error,
-    fetchProjects
+    fetchProjects,
+    createProject,
+    deleteProject,
+    submitProject
   };
 });
