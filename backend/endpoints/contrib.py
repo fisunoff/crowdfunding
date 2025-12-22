@@ -81,6 +81,7 @@ async def get_my_contributions(
 class ContribStats(BaseModel):
     total_count: int
     total_amount: float
+    cool_projects: int
 
 @contrib_router.get('/stats')
 async def get_contribution_stats(
@@ -96,4 +97,23 @@ async def get_contribution_stats(
 
     result = await db.execute(stmt)
     stats = result.one()
-    return ContribStats(total_count=stats[0], total_amount=stats[1])
+
+    stmt = (
+        select(
+            Project.id,
+            Project.title,
+            Project.goal_amount,
+            func.coalesce(func.sum(Reward.price), 0).label("total_raised")
+        )
+        .outerjoin(Contribution, Project.id == Contribution.project_id)
+        .outerjoin(Reward, Contribution.reward_id == Reward.id)
+        .group_by(Project.id)
+    )
+
+    cool_projects = 0
+    result = (await db.execute(stmt)).all()
+    for project_id, project_title, goal_amount, total in result:
+        if total >= goal_amount:
+            cool_projects += 1
+
+    return ContribStats(total_count=stats[0], total_amount=stats[1], cool_projects=cool_projects)
