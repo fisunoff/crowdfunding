@@ -89,6 +89,7 @@ declare global {
   const unref: typeof import('vue').unref
   const useAttrs: typeof import('vue').useAttrs
   const useAuthStore: typeof import('./stores/useAuthStore').useAuthStore
+  const useContribStore: typeof import('./stores/useContribStore').useContribStore
   const useCounterStore: typeof import('./stores/counter').useCounterStore
   const useCssModule: typeof import('vue').useCssModule
   const useCssVars: typeof import('vue').useCssVars
@@ -112,7 +113,7 @@ declare global {
   export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, ShallowRef, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
   // @ts-ignore
-  export type { AuthResponse, UserLogin, ProfileReadData, ProfileCreateData, ValidationError, HTTPValidationError, BaseProjectData, GlobalStatsData, ProjectStatus, CreatedProjectData, BaseRewardData, RewardData, ContribSchema } from './api/types'
+  export type { AuthResponse, UserLogin, ProfileReadData, ProfileCreateData, ValidationError, HTTPValidationError, BaseProjectData, GlobalStatsData, ProjectStatus, CreatedProjectData, BaseRewardData, RewardData, ContribSchema, DetailedContribSchema } from './api/types'
   import('./api/types')
 }
 
@@ -188,6 +189,7 @@ declare module 'vue' {
     readonly unref: UnwrapRef<typeof import('vue')['unref']>
     readonly useAttrs: UnwrapRef<typeof import('vue')['useAttrs']>
     readonly useAuthStore: UnwrapRef<typeof import('./stores/useAuthStore')['useAuthStore']>
+    readonly useContribStore: UnwrapRef<typeof import('./stores/useContribStore')['useContribStore']>
     readonly useCssModule: UnwrapRef<typeof import('vue')['useCssModule']>
     readonly useCssVars: UnwrapRef<typeof import('vue')['useCssVars']>
     readonly useId: UnwrapRef<typeof import('vue')['useId']>

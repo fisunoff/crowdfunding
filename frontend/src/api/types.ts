@@ -105,3 +105,28 @@ export interface ContribSchema {
   status: string;
   created_at: string;
 }
+
+// src/api/types.ts
+
+// ... (предыдущие типы)
+
+export interface ContribSchema {
+  id: number;
+  project_id: number;
+  reward_id: number;
+  profile_id: number;
+  status: string;
+  created_at: string;
+}
+
+// Расширенная схема для списка моих вкладов (с вложенными объектами)
+export interface DetailedContribSchema {
+  id: number;
+  project_id: number;
+  reward_id: number;
+  profile_id: number;
+  status: string;
+  created_at: string;
+  project: CreatedProjectData;
+  reward: RewardData;
+}
