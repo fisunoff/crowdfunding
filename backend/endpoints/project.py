@@ -157,7 +157,7 @@ async def get_project(
         raise HTTPException(status_code=404, detail='Проект не найден.')
     return project
 
-@project_router.patch('/{pk}', status_code=200, response_model=CreatedProjectData)
+@project_router.put('/{pk}', status_code=200, response_model=CreatedProjectData)
 async def update_project(
         pk: int,
         data: BaseProjectData,
