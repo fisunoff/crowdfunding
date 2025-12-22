@@ -5,30 +5,27 @@ import {useProjectsStore} from '@/stores/useProjectsStore';
 import {useAuthStore} from '@/stores/useAuthStore';
 import ProjectCard from '@/components/ProjectCard.vue';
 import CreateProjectModal from '@/modules/projects/components/CreateProjectModal.vue';
-import type {BaseProjectData} from '@/api/types';
+import type {BaseProjectData, ProjectStatus} from '@/api/types';
 
 const router = useRouter();
 const projectsStore = useProjectsStore();
 const authStore = useAuthStore();
-
 const isModalOpen = ref(false);
 
 onMounted(() => {
   projectsStore.fetchProjects();
 });
 
-// Фильтруем проекты: показываем только те, где author_id совпадает с текущим пользователем
 const myProjects = computed(() => {
   if (!authStore.user) return [];
+  // Фильтруем по ID автора
   return projectsStore.projects.filter(p => p.author_id === authStore.user!.id);
 });
 
-// Обработка клика по карточке (переход на детальную страницу)
 const handleCardClick = (id: number) => {
   router.push({name: 'projectCard', params: {id}});
 };
 
-// Создание проекта
 const handleCreateProject = async (data: BaseProjectData) => {
   try {
     await projectsStore.createProject(data);
@@ -38,14 +35,16 @@ const handleCreateProject = async (data: BaseProjectData) => {
   }
 };
 
-// Удаление
 const handleDelete = async (id: number) => {
   if (confirm('Вы уверены, что хотите удалить этот проект?')) {
-    await projectsStore.deleteProject(id);
+    try {
+      await projectsStore.deleteProject(id);
+    } catch (e) {
+      alert('Ошибка при удалении. Возможно, удаление запрещено на текущей стадии.');
+    }
   }
 };
 
-// Публикация
 const handleSubmit = async (id: number) => {
   try {
     await projectsStore.submitProject(id);
@@ -53,12 +52,28 @@ const handleSubmit = async (id: number) => {
     alert('Ошибка при отправке на модерацию');
   }
 };
+
+// --- Helpers для статусов ---
+
+const getStatusLabel = (status: ProjectStatus) => {
+  switch (status) {
+    case 'draft':
+      return 'Черновик';
+    case 'onModeration':
+      return 'На проверке';
+    case 'accepted':
+      return 'Активен';
+    case 'rejected':
+      return 'Отклонен';
+    default:
+      return status;
+  }
+};
 </script>
 
 <template>
   <div class="my-projects-page">
 
-    <!-- Header -->
     <div class="page-header">
       <div class="container header-content">
         <h1 class="page-title">Мои проекты</h1>
@@ -68,7 +83,6 @@ const handleSubmit = async (id: number) => {
       </div>
     </div>
 
-    <!-- Content -->
     <div class="container content-area">
 
       <div v-if="projectsStore.isLoading" class="state-message">
@@ -77,27 +91,27 @@ const handleSubmit = async (id: number) => {
 
       <div v-else-if="myProjects.length === 0" class="empty-state">
         <div class="empty-icon">📂</div>
-        <p>У вас пока нет созданных проектов.</p>
+        <p>У вас пока нет проектов.</p>
         <button class="create-btn-text" @click="isModalOpen = true">Создать первый проект</button>
       </div>
 
       <div v-else class="projects-grid">
-        <!-- Обертка для карточки, чтобы добавить кнопки управления -->
         <div v-for="project in myProjects" :key="project.id" class="project-wrapper">
 
-          <!-- Статус проекта -->
+          <!-- STATUS BADGE -->
           <div class="status-badge" :class="project.status">
-            {{ project.status === 'draft' ? 'Черновик' : 'Активен' }}
+            {{ getStatusLabel(project.status) }}
           </div>
 
-          <!-- Сама карточка -->
           <ProjectCard
               :project="project"
               @click="handleCardClick"
           />
 
-          <!-- Панель управления -->
+          <!-- CONTROL PANEL -->
           <div class="control-panel">
+
+            <!-- Кнопка "На модерацию": Только для Draft -->
             <button
                 v-if="project.status === 'draft'"
                 class="control-btn submit-btn"
@@ -105,18 +119,29 @@ const handleSubmit = async (id: number) => {
             >
               На модерацию
             </button>
+
+            <!-- Кнопка удаления: Draft или OnModeration (согласно Swagger) -->
             <button
+                v-if="['draft', 'onModeration'].includes(project.status)"
                 class="control-btn delete-btn"
                 @click.stop="handleDelete(project.id)"
             >
               Удалить
             </button>
+
+            <!-- Для активных или отклоненных можно показать заглушку или ничего -->
+            <div
+                v-if="['accepted', 'rejected'].includes(project.status)"
+                class="status-info"
+                :class="project.status"
+            >
+              {{ project.status === 'accepted' ? 'Сбор средств идет' : 'Проект закрыт' }}
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Modal -->
     <CreateProjectModal
         v-if="isModalOpen"
         @close="isModalOpen = false"
@@ -168,66 +193,11 @@ const handleSubmit = async (id: number) => {
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.2s;
 }
 
 .create-btn-main:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(88, 123, 242, 0.3);
-}
-
-.plus-icon {
-  font-size: 20px;
-  line-height: 1;
-}
-
-/* Content */
-.content-area {
-  padding-top: 40px;
-  padding-bottom: 60px;
-}
-
-.state-message {
-  text-align: center;
-  color: #666;
-  margin-top: 50px;
-}
-
-/* Empty State */
-.empty-state {
-  text-align: center;
-  margin-top: 60px;
-  background: white;
-  padding: 40px;
-  border-radius: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-}
-
-.empty-icon {
-  font-size: 48px;
-  margin-bottom: 20px;
-}
-
-.empty-state p {
-  font-size: 18px;
-  color: #666;
-  margin-bottom: 20px;
-}
-
-.create-btn-text {
-  background: none;
-  border: 2px solid #587bf2;
-  color: #587bf2;
-  padding: 10px 20px;
-  border-radius: 20px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.create-btn-text:hover {
-  background: #587bf2;
-  color: white;
 }
 
 /* Grid */
@@ -235,6 +205,7 @@ const handleSubmit = async (id: number) => {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 30px;
+  margin-top: 40px;
 }
 
 @media (max-width: 992px) {
@@ -249,14 +220,13 @@ const handleSubmit = async (id: number) => {
   }
 }
 
-/* Project Item Wrapper */
 .project-wrapper {
   position: relative;
   display: flex;
   flex-direction: column;
 }
 
-/* Status Badge */
+/* --- Status Badge Styles --- */
 .status-badge {
   position: absolute;
   top: 15px;
@@ -268,14 +238,24 @@ const handleSubmit = async (id: number) => {
   font-weight: 700;
   text-transform: uppercase;
   color: white;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .status-badge.draft {
-  background-color: #999;
+  background-color: #9E9E9E; /* Серый */
 }
 
-.status-badge.active {
-  background-color: #4CAF50;
+.status-badge.onModeration {
+  background-color: #FFB039; /* Желтый/Оранжевый */
+}
+
+.status-badge.accepted {
+  background-color: #4CAF50; /* Зеленый */
+}
+
+.status-badge.rejected {
+  background-color: #E85A5A; /* Красный */
 }
 
 /* Control Panel */
@@ -283,6 +263,8 @@ const handleSubmit = async (id: number) => {
   margin-top: 15px;
   display: flex;
   gap: 10px;
+  min-height: 40px;
+  align-items: center;
 }
 
 .control-btn {
@@ -301,12 +283,69 @@ const handleSubmit = async (id: number) => {
 }
 
 .submit-btn {
-  background-color: #FFB039; /* Желтый/Оранжевый из лого */
+  background-color: #587bf2;
   color: white;
 }
 
 .delete-btn {
-  background-color: #E85A5A; /* Красный из лого */
+  background-color: #E85A5A;
   color: white;
+}
+
+/* Status Info Text (instead of buttons) */
+.status-info {
+  width: 100%;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px;
+  border-radius: 10px;
+  opacity: 0.8;
+}
+
+.status-info.accepted {
+  color: #4CAF50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.status-info.rejected {
+  color: #E85A5A;
+  background: rgba(232, 90, 90, 0.1);
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  margin-top: 60px;
+  background: white;
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.create-btn-text {
+  background: none;
+  border: 2px solid #587bf2;
+  color: #587bf2;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.create-btn-text:hover {
+  background: #587bf2;
+  color: white;
+}
+
+.state-message {
+  text-align: center;
+  color: #666;
+  margin-top: 50px;
 }
 </style>

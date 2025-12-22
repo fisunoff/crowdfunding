@@ -59,15 +59,17 @@ export interface BaseProjectData {
   end_date: string;   // формат YYYY-MM-DD
 }
 
-export interface CreatedProjectData extends BaseProjectData {
-  id: number;
-  author_id: number;
-  status: string;
-}
-
 
 export interface GlobalStatsData {
   total_money: number;       // Общая сумма
   rewards_count: number;     // Куплено наград
   successful_projects: number; // Успешных проектов
+}
+
+export type ProjectStatus = 'draft' | 'onModeration' | 'accepted' | 'rejected';
+
+export interface CreatedProjectData extends BaseProjectData {
+  id: number;
+  author_id: number;
+  status: ProjectStatus; // Используем новый тип вместо простого string
 }

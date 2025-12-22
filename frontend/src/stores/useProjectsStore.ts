@@ -15,68 +15,56 @@ export const useProjectsStore = defineStore('projects', () => {
     try {
       const realProjects = await projectsApi.getProjects();
 
-      // MOCK DATA (оставляем пока для разработки, как у тебя было)
+      // MOCK DATA для проверки всех статусов
+      // Предполагаем, что ID текущего юзера = 1 (как в useAuthStore моках, если бы они были)
+      // В реальном приложении фильтрация идет по author_id, убедись, что он совпадает с твоим юзером
       const mockProjects: CreatedProjectData[] = [
-        // ... (твой старый массив моков, чтобы не дублировать код здесь, считаем что он тут есть)
-        // Но добавим один проект с ID автора, который совпадет с твоим юзером, чтобы проверить фильтрацию
         {
-          id: 999,
-          author_id: 1, // Предположим, у твоего юзера ID=1
-          status: 'draft', // Статус черновик
-          title: 'Мой тестовый черновик',
-          description: 'Описание черновика проекта...',
+          id: 901,
+          author_id: 1, // Твой ID
+          status: 'draft',
+          title: 'Черновик: Книга о грибах',
+          description: 'Нужно доработать описание и добавить фото...',
           goal_amount: 50000,
-          project_type: 'Тесты',
-          start_date: '2024-01-01',
-          end_date: '2024-12-31'
-        },
-        {
-          id: 101,
-          author_id: 1,
-          status: 'active',
-          title: 'Студийная запись песни "Ржавые ангелы"',
-          description: 'Студийная запись песни на стихи Кирилла Иванова, 13 лет. Кириллу нравится творчество Виктора Цоя. Особенно честность в его произведениях.',
-          goal_amount: 100000,
-          project_type: 'Музыка',
-          start_date: '2023-10-01',
-          end_date: '2024-05-20' // Будущая дата
-        },
-        {
-          id: 102,
-          author_id: 2,
-          status: 'active',
-          title: 'Пожарный Аудит',
-          description: 'Приложение «Пожарный Аудит» - персональный инструмент контроля пожарной безопасности для малого и среднего бизнеса.',
-          goal_amount: 500000,
-          project_type: 'Технологии',
-          start_date: '2023-09-15',
-          end_date: '2024-04-10'
-        },
-        {
-          id: 103,
-          author_id: 1,
-          status: 'active',
-          title: 'Ольгин День - на её родине: подари себе праздник',
-          description: '24 июля - День Святой княгини Ольги. Её родина - п.Выбуты под Псковом ждет гостей на праздник, организованный с вашей помощью.',
-          goal_amount: 150000,
-          project_type: 'События',
-          start_date: '2023-11-01',
-          end_date: '2024-06-01'
-        },
-        {
-          id: 104,
-          author_id: 3,
-          status: 'active',
-          title: 'Краеведческий альбом «Тавенга. Душа Русского Севера»',
-          description: 'Альбом, посвященный кусту деревень Тавенге. Вожегодский округ, Вологодская область. Уникальные фотографии и истории.',
-          goal_amount: 320000,
           project_type: 'Литература',
-          start_date: '2023-12-01',
-          end_date: '2024-07-15'
+          start_date: '2024-06-01',
+          end_date: '2024-09-01'
+        },
+        {
+          id: 902,
+          author_id: 1, // Твой ID
+          status: 'onModeration',
+          title: 'На проверке: Умный ошейник',
+          description: 'Проект отправлен модератору, ждем решения.',
+          goal_amount: 250000,
+          project_type: 'Технологии',
+          start_date: '2024-05-15',
+          end_date: '2024-08-15'
+        },
+        {
+          id: 903,
+          author_id: 1, // Твой ID
+          status: 'accepted',
+          title: 'Активен: Фестиваль джаза',
+          description: 'Проект одобрен и сбор средств уже идет!',
+          goal_amount: 1000000,
+          project_type: 'События',
+          start_date: '2024-05-01',
+          end_date: '2024-10-01'
+        },
+        {
+          id: 904,
+          author_id: 1, // Твой ID
+          status: 'rejected',
+          title: 'Отклонен: Сбор на пиво',
+          description: 'К сожалению, проект не соответствует правилам платформы.',
+          goal_amount: 5000,
+          project_type: 'Развлечения',
+          start_date: '2024-01-01',
+          end_date: '2024-02-01'
         }
       ];
 
-      // Если бэкенд пустой, показываем моки, иначе реальные + моки (для теста)
       projects.value = [...realProjects, ...mockProjects];
 
     } catch (err) {
@@ -87,26 +75,23 @@ export const useProjectsStore = defineStore('projects', () => {
     }
   }
 
-  // Создание проекта
+  // ... createProject, deleteProject, submitProject оставляем такими же ...
   async function createProject(data: BaseProjectData) {
     isLoading.value = true;
     try {
       await projectsApi.createProject(data);
-      // После создания обновляем список
       await fetchProjects();
     } catch (err) {
       console.error(err);
-      throw err; // Пробрасываем ошибку компоненту
+      throw err;
     } finally {
       isLoading.value = false;
     }
   }
 
-  // Удаление проекта
   async function deleteProject(id: number) {
     try {
       await projectsApi.deleteProject(id);
-      // Удаляем из локального стейта, чтобы не делать лишний запрос
       projects.value = projects.value.filter(p => p.id !== id);
     } catch (err) {
       console.error(err);
@@ -114,17 +99,26 @@ export const useProjectsStore = defineStore('projects', () => {
     }
   }
 
-  // Публикация (Submit)
   async function submitProject(id: number) {
     try {
-      const updatedProject = await projectsApi.submitProject(id);
-      // Обновляем проект в списке
+      // Оптимистичное обновление интерфейса
+      // Сначала меняем статус локально, чтобы юзер сразу увидел результат
       const index = projects.value.findIndex(p => p.id === id);
+      if (index !== -1) {
+        // Предполагаем, что после сабмита статус становится onModeration
+        projects.value[index].status = 'onModeration';
+      }
+
+      const updatedProject = await projectsApi.submitProject(id);
+
+      // Обновляем реальными данными с сервера
       if (index !== -1) {
         projects.value[index] = updatedProject;
       }
     } catch (err) {
       console.error(err);
+      // Если ошибка - откатываем статус (можно добавить перезагрузку списка)
+      await fetchProjects();
       throw err;
     }
   }
