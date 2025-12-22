@@ -16,6 +16,7 @@ declare module 'vue' {
     BaseInput: typeof import('./components/BaseInput.vue')['default']
     BaseSegmented: typeof import('./components/ui/BaseSegmented.vue')['default']
     Navbar: typeof import('./components/Navbar.vue')['default']
+    ProjectCard: typeof import('./components/ProjectCard.vue')['default']
     RoleSwitch: typeof import('./components/auth/RoleSwitch.vue')['default']
     RoleSwitcher: typeof import('./components/RoleSwitcher.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']

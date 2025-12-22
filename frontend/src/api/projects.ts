@@ -10,7 +10,7 @@ export const projectsApi = {
 
   // Получить один проект по ID
   async getProjectById(id: number): Promise<CreatedProjectData> {
-    const response = await api.get<CreatedProjectData>(`/projects/${id}`);
+    const response = await api.get<CreatedProjectData>(`/projects/${id}/`);
     return response.data;
   }
 };
