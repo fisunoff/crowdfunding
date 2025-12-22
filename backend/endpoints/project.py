@@ -112,7 +112,7 @@ async def reject_project(
     if project.status != 'onModeration':
         raise HTTPException(status_code=403, detail='Проекту нельзя, так как он не находится на модерации.')
     project.status = 'rejected'
-    project.message = message
+    project.moderator_comment = message
     db.add(project)
     await db.commit()
     await db.refresh(project)
@@ -137,7 +137,7 @@ async def accept_project(
     if project.status != 'onModeration':
         raise HTTPException(status_code=403, detail='Проект нельзя подтвердить, так как он не находится на модерации.')
     project.status = 'accepted'
-    project.message = message
+    project.moderator_comment = message
     db.add(project)
     await db.commit()
     await db.refresh(project)
@@ -162,7 +162,7 @@ async def to_draft_project(
     if project.status != 'onModeration':
         raise HTTPException(status_code=403, detail='Проект нельзя отправить на доработку, так как он не находится на модерации.')
     project.status = 'draft'
-    project.message = message
+    project.moderator_comment = message
     db.add(project)
     await db.commit()
     await db.refresh(project)
