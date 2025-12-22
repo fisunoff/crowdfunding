@@ -84,3 +84,15 @@ export interface CreatedProjectData extends BaseProjectData {
   // Новое поле из спецификации
   moderator_comment?: string | null;
 }
+
+export interface BaseRewardData {
+  title: string;
+  description: string;
+  price: number;
+  quantity: number;
+}
+
+export interface RewardData extends BaseRewardData {
+  id: number;
+  active: boolean;
+}

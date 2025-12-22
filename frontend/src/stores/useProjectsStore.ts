@@ -2,40 +2,49 @@
 import {defineStore} from 'pinia';
 import {ref} from 'vue';
 import {projectsApi} from '@/api/projects';
-import type {CreatedProjectData, BaseProjectData} from '@/api/types';
+import type {CreatedProjectData, BaseProjectData, RewardData, BaseRewardData} from '@/api/types';
 
 export const useProjectsStore = defineStore('projects', () => {
+  // Список проектов
   const projects = ref<CreatedProjectData[]>([]);
+
+  // Временное хранилище наград для редактируемого проекта
+  const currentRewards = ref<RewardData[]>([]);
+
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
+  // --- ACTIONS ---
+
+  // 1. Получение проектов
   async function fetchProjects() {
     isLoading.value = true;
     error.value = null;
     try {
+      // Пытаемся получить реальные данные
       const realProjects = await projectsApi.getProjects();
 
-      // MOCK DATA
-      // author_id: 1 - предполагаем, что это текущий юзер
+      // --- MOCK DATA (для разработки интерфейса) ---
+      // Предполагаем, что твой user.id = 1.
       const mockProjects: CreatedProjectData[] = [
         {
           id: 901,
           author_id: 1,
           status: 'draft',
-          title: 'Просто черновик',
-          description: 'Я только начал заполнять этот проект.',
+          title: 'Черновик: Книга о грибах',
+          description: 'Здесь пока мало текста, нужно дописать...',
           goal_amount: 50000,
           project_type: 'Литература',
           start_date: '2024-06-01',
           end_date: '2024-09-01',
-          moderator_comment: null // Комментария нет
+          moderator_comment: null
         },
         {
           id: 902,
           author_id: 1,
           status: 'onModeration',
           title: 'Умный ошейник v2',
-          description: 'Ждем решения администратора.',
+          description: 'Проект отправлен на проверку.',
           goal_amount: 250000,
           project_type: 'Технологии',
           start_date: '2024-05-15',
@@ -46,40 +55,41 @@ export const useProjectsStore = defineStore('projects', () => {
           id: 903,
           author_id: 1,
           status: 'accepted',
-          title: 'Фестиваль джаза',
-          description: 'Проект одобрен и собирает деньги.',
+          title: 'Фестиваль джаза (Активен)',
+          description: 'Сбор средств идет полным ходом!',
           goal_amount: 1000000,
           project_type: 'События',
           start_date: '2024-05-01',
           end_date: '2024-10-01',
-          moderator_comment: 'Отличный проект, удачи!' // Иногда админ может написать и хорошее
+          moderator_comment: 'Удачи в сборах!'
         },
         {
           id: 904,
           author_id: 1,
           status: 'rejected',
-          title: 'Сбор на вечеринку',
-          description: 'Отказано полностью.',
+          title: 'Отклоненный проект',
+          description: 'Этот проект нарушал правила.',
           goal_amount: 5000,
           project_type: 'Развлечения',
           start_date: '2024-01-01',
           end_date: '2024-02-01',
-          moderator_comment: 'Нарушение правил платформы: сбор личных средств запрещен.'
+          moderator_comment: 'Сбор средств на личные нужды (вечеринку) запрещен правилами платформы.'
         },
-        // ВАЖНЫЙ КЕЙС: Вернули на доработку
+        // ВАЖНО: Черновик, возвращенный на доработку
         {
           id: 905,
           author_id: 1,
           status: 'draft',
-          title: 'Книга о грибах (Нужны правки)',
-          description: 'Описание проекта...',
-          goal_amount: 100000,
-          project_type: 'Книги',
-          start_date: '2024-01-01',
-          end_date: '2024-02-01',
-          moderator_comment: 'Пожалуйста, добавьте смету расходов в описание и загрузите более качественную обложку.'
+          title: 'Настольная игра (Нужны правки)',
+          description: 'Игра про средневековье.',
+          goal_amount: 150000,
+          project_type: 'Игры',
+          start_date: '2024-09-01',
+          end_date: '2024-12-01',
+          moderator_comment: 'Пожалуйста, добавьте более подробное описание правил игры и загрузите фото прототипа. После этого отправьте повторно.'
         }
       ];
+      // ---------------------------------------------
 
       projects.value = [...realProjects, ...mockProjects];
 
@@ -91,12 +101,12 @@ export const useProjectsStore = defineStore('projects', () => {
     }
   }
 
-  // ... остальные методы (create, delete, submit) без изменений
+  // 2. Создание проекта
   async function createProject(data: BaseProjectData) {
     isLoading.value = true;
     try {
       await projectsApi.createProject(data);
-      await fetchProjects();
+      await fetchProjects(); // Обновляем список
     } catch (err) {
       console.error(err);
       throw err;
@@ -105,24 +115,94 @@ export const useProjectsStore = defineStore('projects', () => {
     }
   }
 
-  async function deleteProject(id: number) {
-    await projectsApi.deleteProject(id);
-    projects.value = projects.value.filter(p => p.id !== id);
+  // 3. Обновление проекта (PATCH)
+  async function updateProject(id: number, data: BaseProjectData) {
+    isLoading.value = true;
+    try {
+      const updated = await projectsApi.updateProject(id, data);
+
+      // Находим проект в списке и обновляем его данные без перезагрузки всего списка
+      const index = projects.value.findIndex(p => p.id === id);
+      if (index !== -1) {
+        projects.value[index] = updated;
+      }
+    } catch (err) {
+      console.error(err);
+      throw err;
+    } finally {
+      isLoading.value = false;
+    }
   }
 
+  // 4. Удаление проекта
+  async function deleteProject(id: number) {
+    try {
+      await projectsApi.deleteProject(id);
+      projects.value = projects.value.filter(p => p.id !== id);
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  }
+
+  // 5. Отправка на модерацию
   async function submitProject(id: number) {
-    const updated = await projectsApi.submitProject(id);
-    const index = projects.value.findIndex(p => p.id === id);
-    if (index !== -1) projects.value[index] = updated;
+    try {
+      const updatedProject = await projectsApi.submitProject(id);
+      const index = projects.value.findIndex(p => p.id === id);
+      if (index !== -1) {
+        projects.value[index] = updatedProject;
+      }
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  }
+
+  // --- ACTIONS: REWARDS ---
+
+  async function fetchRewards(projectId: number) {
+    try {
+      currentRewards.value = await projectsApi.getRewards(projectId);
+    } catch (err) {
+      console.error('Failed to fetch rewards', err);
+      // Если ошибка, можно очистить или оставить пустым
+      currentRewards.value = [];
+    }
+  }
+
+  async function addReward(projectId: number, data: BaseRewardData) {
+    try {
+      const newReward = await projectsApi.createReward(projectId, data);
+      currentRewards.value.push(newReward);
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  }
+
+  async function removeReward(projectId: number, rewardId: number) {
+    try {
+      await projectsApi.deleteReward(projectId, rewardId);
+      currentRewards.value = currentRewards.value.filter(r => r.id !== rewardId);
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
   }
 
   return {
     projects,
+    currentRewards, // State для наград
     isLoading,
     error,
     fetchProjects,
     createProject,
+    updateProject,
     deleteProject,
-    submitProject
+    submitProject,
+    fetchRewards,
+    addReward,
+    removeReward
   };
 });
