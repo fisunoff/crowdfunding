@@ -19,7 +19,7 @@ async def verify_project_by_author(project, author_id):
     if not project:
         raise HTTPException(status_code=404, detail='Проект не найден.')
     if project.author_id != int(author_id):
-        raise HTTPException(status_code=403, detail='Вы не вносить изменения в данный проект.')
+        raise HTTPException(status_code=403, detail='Вы не можете вносить изменения в данный проект.')
 
 @project_router.get('/', response_model=list[CreatedProjectData])
 async def get_projects(
@@ -155,6 +155,30 @@ async def get_project(
     project = await db.get(Project, pk)
     if not project:
         raise HTTPException(status_code=404, detail='Проект не найден.')
+    return project
+
+@project_router.patch('/{pk}', status_code=200, response_model=CreatedProjectData)
+async def update_project(
+        pk: int,
+        data: BaseProjectData,
+        db: AsyncSession = Depends(get_db),
+        token_payload: dict = Depends(verify_author_role),
+):
+    project = await db.get(Project, pk)
+    await verify_project_by_author(project, token_payload['sub'])
+
+    if project.status != 'draft':
+        raise HTTPException(status_code=403, detail='Проект редактировать уже нельзя.')
+
+    project.title = data.title
+    project.description = data.description
+    project.goal_amount = data.goal_amount
+    project.project_type = data.project_type
+    project.start_date = data.start_date
+    project.end_date = data.end_date
+    db.add(project)
+    await db.commit()
+    await db.refresh(project)
     return project
 
 
