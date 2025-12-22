@@ -52,7 +52,7 @@ async def create_project(
     return project
 
 
-@project_router.delete('{pk}', status_code=204)
+@project_router.delete('/{pk}', status_code=204)
 async def delete_project(
         pk: int,
         db: AsyncSession = Depends(get_db),
