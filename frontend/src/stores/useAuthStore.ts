@@ -3,7 +3,7 @@ import {defineStore} from 'pinia';
 import {ref, computed} from 'vue';
 import {useRouter} from 'vue-router';
 import {authApi} from '@/api/auth';
-import type {UserLogin, ProfileCreateData, ProfileReadData} from '@/api/types';
+import type {UserLogin, ProfileCreateData, ProfileReadData, BaseProfileData} from '@/api/types';
 
 export const useAuthStore = defineStore('auth', () => {
   const router = useRouter();
@@ -87,6 +87,21 @@ export const useAuthStore = defineStore('auth', () => {
       logout();
     }
   }
+  //  Обновление данных пользователя
+  async function updateUser(data: BaseProfileData) {
+    isLoading.value = true;
+    error.value = null;
+    try {
+      const updatedUser = await authApi.updateMe(data);
+      user.value = updatedUser; // Мгновенно обновляем данные в интерфейсе
+    } catch (err) {
+      console.error(err);
+      error.value = 'Ошибка при обновлении профиля';
+      throw err;
+    } finally {
+      isLoading.value = false;
+    }
+  }
 
   return {
     user,
@@ -98,6 +113,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     register,
     logout,
-    fetchUser
+    fetchUser,
+    updateUser
   };
 });

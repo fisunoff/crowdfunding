@@ -4,7 +4,7 @@ import type {
   UserLogin,
   ProfileCreateData,
   ProfileReadData,
-  AuthResponse
+  AuthResponse, BaseProfileData
 } from './types';
 
 export const authApi = {
@@ -29,6 +29,11 @@ export const authApi = {
   // Получение своего профиля
   async getMe(): Promise<ProfileReadData> {
     const response = await api.get<ProfileReadData>('/profile/me/');
+    return response.data;
+  },
+
+  async updateMe(data: BaseProfileData): Promise<ProfileReadData> {
+    const response = await api.put<ProfileReadData>('/profile/me', data);
     return response.data;
   }
 };

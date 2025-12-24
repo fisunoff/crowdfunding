@@ -130,3 +130,10 @@ export interface GlobalStatsData {
   total_amount: number;    // Сумма денег
   cool_projects: number;   // Успешные проекты
 }
+export interface BaseProfileData {
+  name: string;
+  surname: string;
+  patronymic: string; // В API это обязательное поле, если нет - шлем пустую строку
+  bank_number: string;
+  phone_number?: string | null;
+}
