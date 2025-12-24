@@ -22,8 +22,24 @@ const moderationAction = ref<'draft' | 'reject'>('draft');
 const isInvestModalOpen = ref(false);
 const selectedReward = ref<RewardData | null>(null);
 
-onMounted(() => {
-  if (projectId) projectsStore.fetchFullProject(projectId);
+const currentAmount = computed(() => {
+  if (!project.value) return 0;
+  return projectsStore.projectStats[project.value.id] || 0;
+});
+
+const progressPercent = computed(() => {
+  if (!project.value || project.value.goal_amount === 0) return 0;
+  return (currentAmount.value / project.value.goal_amount) * 100;
+});
+
+// ...
+// Также добавь вызов подсчета в onMounted
+onMounted(async () => {
+  if (projectId) {
+    await projectsStore.fetchFullProject(projectId);
+    // [НОВОЕ] Считаем деньги для этого проекта
+    await projectsStore.calculateProjectStats(projectId);
+  }
 });
 
 const project = computed(() => projectsStore.activeProject);
@@ -38,8 +54,6 @@ const canEdit = computed(() => isAuthor.value && project.value?.status === 'draf
 const canInvest = computed(() => project.value?.status === 'accepted');
 
 // Helpers UI
-const mockPercent = computed(() => project.value ? (project.value.id * 17) % 95 : 0);
-const mockCollected = computed(() => project.value ? Math.round(project.value.goal_amount * mockPercent.value / 100) : 0);
 const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('ru-RU') : '';
 const formatMoney = (v?: number) => v ? new Intl.NumberFormat('ru-RU', {
   style: 'currency',
@@ -190,12 +204,12 @@ const handleEditModalClose = async () => {
         <div class="sidebar">
           <div class="stats-card">
             <div class="progress-bar-bg">
-              <div class="progress-bar-fill" :style="{ width: `${mockPercent}%` }"></div>
+              <div class="progress-bar-fill" :style="{ width: `${Math.round(progressPercent)}%` }"></div>
             </div>
-            <div class="stat-main-value">{{ formatMoney(mockCollected) }}</div>
+            <div class="stat-main-value">{{ formatMoney(currentAmount) }}</div>
             <div class="stat-sub">цель {{ formatMoney(project.goal_amount) }}</div>
             <div class="project-status-info" :class="project.status">
-              Статус: {{ getStatusLabel(project.status) }}
+              {{ getStatusLabel(project.status) }}
             </div>
           </div>
 

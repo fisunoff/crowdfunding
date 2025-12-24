@@ -15,6 +15,9 @@ export const useProjectsStore = defineStore('projects', () => {
   const error = ref<string | null>(null);
 
   const activeProject = ref<CreatedProjectData | null>(null);
+
+  const projectStats = ref<Record<number, number>>({});
+
   // --- ACTIONS ---
 
   // 1. Получение проектов
@@ -272,12 +275,39 @@ export const useProjectsStore = defineStore('projects', () => {
       isLoading.value = false;
     }
   }
+  async function calculateProjectStats(projectId: number) {
+    // Не включаем глобальный isLoading, чтобы не блокировать интерфейс, считаем в фоне
+    try {
+      // 1. Получаем награды проекта
+      const rewards = await projectsApi.getRewards(projectId);
+
+      let total = 0;
+
+      // 2. Для каждой награды запрашиваем список вкладов
+      // Используем Promise.all для параллельных запросов
+      const promises = rewards.map(async (reward) => {
+        const contributions = await contribApi.getContributionsByReward(projectId, reward.id);
+        // Сумма = цена награды * количество вкладов
+        return contributions.length * reward.price;
+      });
+
+      const results = await Promise.all(promises);
+      total = results.reduce((acc, curr) => acc + curr, 0);
+
+      // 3. Записываем результат в реактивный объект
+      projectStats.value[projectId] = total;
+
+    } catch (err) {
+      console.error(`Ошибка подсчета статистики для проекта ${projectId}:`, err);
+    }
+  }
 
   return {
     projects,
     currentRewards, // State для наград
     isLoading,
     error,
+    projectStats,
     fetchProjects,
     createProject,
     updateProject,
@@ -291,6 +321,7 @@ export const useProjectsStore = defineStore('projects', () => {
     acceptProject, // + export
     rejectProject, // + export
     returnToDraft,
-    contribute // +
+    contribute, // +
+    calculateProjectStats
   };
 });
